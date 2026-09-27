@@ -24,9 +24,11 @@ final class TripRules
 
     private const HAUSA_HINTS = ['sannu', 'ina son', 'zuwa', 'daga', 'gobe', 'jibi', 'don allah', 'na gode', 'mutum', 'mutane', 'jirgi', 'tikiti', 'ni kadai', 'nawa', 'yaya', 'barka'];
 
-    public function __construct(private ?\DateTimeImmutable $today = null)
+    private \DateTimeImmutable $today;
+
+    public function __construct(?\DateTimeImmutable $today = null)
     {
-        $this->today ??= new \DateTimeImmutable('today');
+        $this->today = ($today ?? new \DateTimeImmutable('today'))->setTime(0, 0);
     }
 
     public function parse(string $text): TripRequest
