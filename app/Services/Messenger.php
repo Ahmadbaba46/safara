@@ -52,7 +52,11 @@ class Messenger
     {
         $vars['brand'] ??= config('safara.brand');
 
-        return trim(preg_replace_callback('/\{(\w+)\}/', fn ($m) => array_key_exists($m[1], $vars) ? (string) $vars[$m[1]] : '', $text));
+        $out = preg_replace_callback('/\{(\w+)\}/', fn ($m) => array_key_exists($m[1], $vars) ? (string) $vars[$m[1]] : '', $text);
+        // Tidy up after empty values: "Sorry, , the fare" → "Sorry, the fare"; "Thanks, ." → "Thanks."
+        $out = preg_replace(['/,[ \t]*,/', '/,[ \t]*([.!?])/', '/[ \t]+([,.!?])/', '/[ \t]{2,}/'], [',', '$1', '$1', ' '], $out);
+
+        return trim($out);
     }
 
     /**

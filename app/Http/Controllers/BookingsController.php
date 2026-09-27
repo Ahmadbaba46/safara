@@ -275,7 +275,7 @@ class BookingsController extends Controller
                 'origin' => strtoupper($data['origin']),
                 'destination' => strtoupper($data['destination']),
                 'depart_on' => $data['depart_on'],
-                'return_on' => $data['return_on'] ?: null,
+                'return_on' => $data['return_on'] ?? null,
                 'travellers' => $data['travellers'],
             ]);
         } else {

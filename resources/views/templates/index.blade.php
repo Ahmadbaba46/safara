@@ -76,8 +76,8 @@
                 @endif
             </div>
 
-            <div class="row">
-                <span class="grow small muted">Messages sent more than 24 hours after the client’s last reply must use a template Meta has approved.</span>
+            <span class="small muted">Messages sent more than 24 hours after the client’s last reply must use a template Meta has approved.</span>
+            <div class="row" style="justify-content:flex-end">
                 <button class="btn" type="submit" form="test-form">Send test to my phone</button>
                 <button class="btn btn-primary" type="submit">Save changes</button>
             </div>

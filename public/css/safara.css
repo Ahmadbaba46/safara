@@ -168,7 +168,7 @@ svg.i-s { width: 16px; height: 16px; }
 .kcard:hover { border-color: #CFC8B8; color: var(--ink); box-shadow: 0 1px 0 rgba(0,0,0,.03); }
 .kcard-top { display: flex; font-size: 12px; color: var(--muted); }
 .kcard-name { font-size: 15px; font-weight: 600; }
-.kcard-foot { display: flex; font-size: 13px; color: var(--ink-2); }
+.kcard-foot { display: flex; gap: 8px; font-size: 13px; color: var(--ink-2); }
 .kempty { font-size: 13px; color: var(--muted); padding: 8px 4px 12px; }
 .more { font-size: 13px; font-weight: 600; text-decoration: none; padding: 4px; }
 
@@ -211,6 +211,7 @@ svg.i-s { width: 16px; height: 16px; }
 
 /* ---- chat -------------------------------------------------------------- */
 .chat { background: var(--chat); border-radius: 16px; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.chat > * { flex-shrink: 0; }
 .bubble { max-width: 78%; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; }
 .bubble .b-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; }
 .bubble .b-time { align-self: flex-end; font-size: 11px; color: var(--muted); white-space: nowrap; }

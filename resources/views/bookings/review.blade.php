@@ -1,8 +1,8 @@
 @extends('layouts.desk')
-@php($section = 'bookings')
 @section('title', 'Fare review '.$booking->reference)
 @section('content')
 @php
+    $section = 'bookings';
     $waiting = $booking->status === \App\Enums\BookingStatus::AwaitingChoice;
     $choices = [
         'choose' => ['Let '.($booking->passports->first()?->firstName() ?: 'the client').' choose', 'Pay the difference, move to a date within budget, or take a refund', 'Recommended', 'var(--green-ink)'],
