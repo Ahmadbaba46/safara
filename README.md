@@ -87,7 +87,15 @@ DeepSeek's vision model reads the photo page. The machine-readable lines (MRZ) a
 
 Passport photos are sent to DeepSeek's API, a service operated from China, so check that this fits your privacy policy and the consent you collect from clients. Any OpenAI-compatible provider can be used instead by changing `DEEPSEEK_URL` and `DEEPSEEK_MODEL`.
 
-### 3. Duffel
+### 3. Flights
+
+**Operator ticketing (no flight API)** works anywhere, including countries where Duffel isn't available:
+```
+SAFARA_FLIGHTS_DRIVER=manual
+```
+The bot still collects the trip and passports and takes payment. After the client confirms, the booking shows **Needs your quote** on the desk. Price it with your own agent or airline, enter the airline and the price on the booking page, and the client gets a pay link. Once they pay, book the seat yourself, then enter the booking reference (PNR) and optionally upload the airline's e-ticket PDF. The ticket is sent to the client's chat.
+
+**Duffel** (automatic fares and ticketing) where your business country is supported:
 ```
 SAFARA_FLIGHTS_DRIVER=duffel
 DUFFEL_ACCESS_TOKEN=duffel_test_...  # start with a test token

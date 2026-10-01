@@ -7,6 +7,7 @@ enum BookingStatus: string
     case CollectingTrip = 'collecting_trip';
     case AwaitingPassport = 'awaiting_passport';
     case Confirming = 'confirming';
+    case AwaitingQuote = 'awaiting_quote';
     case AwaitingPayment = 'awaiting_payment';
     case Expired = 'expired';
     case Paid = 'paid';
@@ -24,6 +25,7 @@ enum BookingStatus: string
             self::CollectingTrip => 'Getting trip details',
             self::AwaitingPassport => 'Passport in',
             self::Confirming => 'Confirming details',
+            self::AwaitingQuote => 'Needs your quote',
             self::AwaitingPayment => 'Awaiting payment',
             self::Expired => 'Price hold expired',
             self::Paid => 'Paid · booking',
@@ -43,7 +45,7 @@ enum BookingStatus: string
         return match ($this) {
             self::CollectingTrip, self::AwaitingPassport => 'info',
             self::Confirming, self::Expired, self::Refunded, self::Cancelled => 'mute',
-            self::AwaitingPayment, self::FareReview, self::AwaitingChoice, self::AwaitingDifference => 'warn',
+            self::AwaitingQuote, self::AwaitingPayment, self::FareReview, self::AwaitingChoice, self::AwaitingDifference => 'warn',
             self::Paid => 'ok',
             self::Ticketed => 'done',
             self::RefundDue => 'bad',
@@ -55,7 +57,7 @@ enum BookingStatus: string
     {
         return match ($this) {
             self::CollectingTrip, self::AwaitingPassport => 'passport',
-            self::Confirming => 'confirming',
+            self::Confirming, self::AwaitingQuote => 'confirming',
             self::AwaitingPayment, self::Expired => 'payment',
             self::Paid, self::FareReview, self::AwaitingChoice, self::AwaitingDifference => 'paid',
             self::Ticketed => 'ticketed',
@@ -67,7 +69,7 @@ enum BookingStatus: string
     public static function open(): array
     {
         return [
-            self::CollectingTrip, self::AwaitingPassport, self::Confirming, self::AwaitingPayment,
+            self::CollectingTrip, self::AwaitingPassport, self::Confirming, self::AwaitingQuote, self::AwaitingPayment,
             self::Expired, self::Paid, self::FareReview, self::AwaitingChoice, self::AwaitingDifference,
         ];
     }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\FlightSearch;
 use App\Enums\BookingStatus;
+use App\Integrations\Flights\ManualFlightSearch;
 use App\Models\Booking;
 use App\Models\Offer;
 use App\Models\Payment;
@@ -54,6 +55,15 @@ class TicketingService
     /** Re-price now and issue, hold or send to review according to the rules. */
     public function checkFareAndProceed(Booking $booking): void
     {
+        if (ManualFlightSearch::enabled()) {
+            // No fare to re-check: the operator books the seat and records the PNR.
+            $booking->setFlag('Paid · book the ticket', 'ok')->save();
+            $booking->event('hold', 'Paid · ready to ticket', 'Book with your agent, then record the PNR');
+            $this->messenger->toOperator("{$booking->reference} ({$booking->client->displayName()}) has paid. Book the ticket: ".route('bookings.show', $booking));
+
+            return;
+        }
+
         try {
             $offers = $this->offers->search($booking, null, 'paid');
         } catch (Throwable $e) {
@@ -179,10 +189,36 @@ class TicketingService
         return true;
     }
 
-    public function deliverTicket(Booking $booking, Offer $offer): void
+    /**
+     * Record a ticket the operator booked outside Safara and send it to the client.
+     *
+     * @param  string[]  $ticketNumbers
+     * @param  ?string  $uploadedPath  the airline's own e-ticket PDF, sent instead of Safara's receipt
+     */
+    public function issueManually(Booking $booking, string $pnr, array $ticketNumbers = [], ?string $uploadedPath = null): void
+    {
+        $booking->loadMissing('client');
+        $offer = $booking->selectedOffer() ?? $booking->offers()->latest('id')->firstOrFail();
+
+        $booking->fill([
+            'status' => BookingStatus::Ticketed,
+            'pnr' => strtoupper($pnr),
+            'ticketed_fare' => $offer->amount,
+            'ticketed_at' => now(),
+        ])->stateSet('ticket_numbers', $ticketNumbers)
+            ->stateSet('segments', $offer->segments ?? [])
+            ->stateSet('auto_pending', false)
+            ->setFlag(null)->save();
+
+        $booking->event('ticketed', 'Ticket recorded · '.strtoupper($pnr), $offer->airline.' · '.Money::format($offer->amount));
+
+        $this->deliverTicket($booking->fresh(['client']), $offer, $uploadedPath);
+    }
+
+    public function deliverTicket(Booking $booking, Offer $offer, ?string $uploadedPath = null): void
     {
         $client = $booking->client;
-        $path = $this->pdf->generate($booking, $offer);
+        $path = $uploadedPath ?? $this->pdf->generate($booking, $offer);
         $booking->update(['ticket_path' => $path]);
 
         $name = $booking->passports()->first()?->firstName() ?: '';

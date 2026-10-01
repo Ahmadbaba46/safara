@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BookingStatus;
+use App\Integrations\Flights\ManualFlightSearch;
 use App\Models\Booking;
 use App\Models\Client;
 use App\Models\Passport;
@@ -14,6 +15,7 @@ use App\Services\TicketingService;
 use App\Support\Iata;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -129,6 +131,70 @@ class BookingsController extends Controller
         $ok = $ticketing->issue($booking, $offer, force: $request->boolean('force'));
 
         return back()->with($ok ? 'status' : 'error', $ok ? 'Ticket issued and sent to the client.' : 'Could not issue — see the flag on the booking.');
+    }
+
+    /** Operator ticketing: send the client a price you worked out yourself. */
+    public function manualQuote(Request $request, Booking $booking, QuoteService $quotes)
+    {
+        abort_unless(ManualFlightSearch::enabled(), 404);
+        abort_unless(in_array($booking->status, [BookingStatus::AwaitingQuote, BookingStatus::AwaitingPayment, BookingStatus::Expired], true), 409, 'This booking is not waiting for a quote.');
+        $data = $request->validate([
+            'airline' => 'required|string|max:60',
+            'price' => 'required|integer|min:1000|max:100000000',
+            'cost' => 'nullable|integer|min:0|max:100000000',
+            'baggage' => 'nullable|string|max:60',
+            'summary' => 'nullable|string|max:80',
+            'out_flight' => 'nullable|string|max:12',
+            'out_departs' => 'nullable|date',
+            'out_arrives' => 'nullable|date',
+            'ret_flight' => 'nullable|string|max:12',
+            'ret_departs' => 'nullable|date',
+            'ret_arrives' => 'nullable|date',
+        ]);
+
+        $segments = [];
+        foreach (['out' => [$booking->origin, $booking->destination, 0], 'ret' => [$booking->destination, $booking->origin, 1]] as $key => [$from, $to, $slice]) {
+            if (! empty($data[$key.'_departs']) || ! empty($data[$key.'_flight'])) {
+                $segments[] = [
+                    'flight_number' => strtoupper($data[$key.'_flight'] ?? ''),
+                    'origin' => $from, 'destination' => $to,
+                    'origin_city' => Iata::city($from), 'destination_city' => Iata::city($to),
+                    'departing_at' => ! empty($data[$key.'_departs']) ? Carbon::parse($data[$key.'_departs'])->toIso8601String() : null,
+                    'arriving_at' => ! empty($data[$key.'_arrives']) ? Carbon::parse($data[$key.'_arrives'])->toIso8601String() : null,
+                    'carrier' => $data['airline'],
+                    'slice' => $slice,
+                ];
+            }
+        }
+
+        $quotes->sendManualQuote($booking, [
+            'airline' => $data['airline'], 'price' => $data['price'], 'cost' => $data['cost'] ?? null,
+            'baggage' => $data['baggage'] ?? null, 'summary' => $data['summary'] ?? null, 'segments' => $segments,
+        ]);
+
+        return back()->with('status', 'Quote sent with a pay link.');
+    }
+
+    /** Operator ticketing: you booked it elsewhere; record the PNR and send the ticket. */
+    public function manualIssue(Request $request, Booking $booking, TicketingService $ticketing)
+    {
+        abort_unless(ManualFlightSearch::enabled(), 404);
+        abort_if($booking->status === BookingStatus::Ticketed, 409, 'Already ticketed.');
+        abort_if((int) $booking->paid_amount <= 0, 409, 'The client has not paid yet.');
+        $data = $request->validate([
+            'pnr' => ['required', 'string', 'regex:/^[A-Za-z0-9]{5,10}$/'],
+            'ticket_numbers' => 'nullable|string|max:200',
+            'ticket_pdf' => 'nullable|file|mimes:pdf|max:8192',
+        ]);
+
+        $path = $request->hasFile('ticket_pdf')
+            ? $request->file('ticket_pdf')->storeAs('tickets', $booking->reference.'-'.strtoupper($data['pnr']).'-airline.pdf', 'local')
+            : null;
+        $numbers = array_values(array_filter(preg_split('/[\s,;]+/', (string) ($data['ticket_numbers'] ?? '')) ?: []));
+
+        $ticketing->issueManually($booking, $data['pnr'], $numbers, $path);
+
+        return back()->with('status', 'Ticket recorded and sent to the client.');
     }
 
     public function review(Booking $booking, Messenger $messenger)

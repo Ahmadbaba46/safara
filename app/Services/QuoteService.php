@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Enums\BookingStatus;
+use App\Integrations\Flights\ManualFlightSearch;
 use App\Models\Booking;
+use App\Models\Offer;
 use App\Models\Payment;
 use App\Support\Iata;
 use App\Support\Money;
@@ -28,6 +30,10 @@ class QuoteService
     {
         $client = $booking->client;
         $previous = $booking->quote_amount;
+
+        if (ManualFlightSearch::enabled()) {
+            return $this->requestManualQuote($booking);
+        }
 
         try {
             $offers = $this->offers->search($booking);
@@ -54,12 +60,20 @@ class QuoteService
         $booking->offers()->update(['selected' => false]);
         $cheapest->update(['selected' => true]);
 
-        $price = $this->settings->pricing()->quote($cheapest->amount);
+        $this->sendQuote($booking, $cheapest, $this->settings->pricing()->quote($cheapest->amount), $messageKey, $previous);
+
+        return true;
+    }
+
+    /** Open the pay link for a chosen offer at $price and tell the client. */
+    private function sendQuote(Booking $booking, Offer $offer, int $price, string $messageKey, ?int $previous): void
+    {
+        $client = $booking->client;
         $holdUntil = now()->addMinutes($this->settings->holdMinutes());
 
         $booking->fill([
             'status' => BookingStatus::AwaitingPayment,
-            'fare_amount' => $cheapest->amount,
+            'fare_amount' => $offer->amount,
             'quote_amount' => $price,
             'quoted_at' => now(),
             'hold_expires_at' => $holdUntil,
@@ -91,8 +105,54 @@ class QuoteService
         }
 
         $this->messenger->cta($client, $booking, $messageKey, $vars, $payment->url());
+    }
+
+    // ---- operator ticketing (no flight API) ----------------------------------
+
+    /** Park the booking until a person sends a price from the desk. */
+    private function requestManualQuote(Booking $booking): bool
+    {
+        $booking->update(['status' => BookingStatus::AwaitingQuote]);
+        $booking->payments()->where('kind', 'charge')->where('status', 'open')->update(['status' => 'expired']);
+        $booking->setFlag('Needs your quote', 'warn')->save();
+        $booking->event('quote', 'Waiting for your quote', $booking->routeCodes().' · '.$booking->travellersLabel());
+
+        $this->messenger->say($booking->client, $booking, 'quote_pending');
+        $this->messenger->toOperator("{$booking->reference} ({$booking->client->displayName()}): ready for your quote. ".route('bookings.show', $booking));
 
         return true;
+    }
+
+    /**
+     * The operator's price: record it as the offer and send the pay link.
+     *
+     * @param  array{airline: string, price: int, cost?: ?int, baggage?: ?string, summary?: ?string, segments?: array}  $data
+     */
+    public function sendManualQuote(Booking $booking, array $data): void
+    {
+        $price = (int) $data['price'];
+        $cost = (int) ($data['cost'] ?? 0) ?: $price;
+        $previous = $booking->quote_amount;
+
+        $booking->offers()->update(['selected' => false]);
+        $offer = $booking->offers()->create([
+            'provider_offer_id' => 'off_manual_'.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(10)),
+            'batch' => 'manual-'.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8)),
+            'airline' => $data['airline'],
+            'depart_on' => $booking->depart_on,
+            'summary' => $data['summary'] ?: ($booking->return_on ? 'Return' : 'One way'),
+            'stops' => 0,
+            'baggage' => $data['baggage'] ?? null,
+            'amount' => $cost,
+            'original_amount' => $cost,
+            'original_currency' => 'NGN',
+            'segments' => $data['segments'] ?? [],
+            'passenger_ids' => [],
+            'selected' => true,
+        ]);
+
+        $booking->event('quote', 'Quote entered by '.(request()->user()?->name ?? 'the desk'), $data['airline'].' · '.Money::format($price));
+        $this->sendQuote($booking, $offer, $price, $previous ? 'hold_expired' : 'quote', $previous);
     }
 
     /** The client came back after the price hold ended: check again and re-quote. */

@@ -30,7 +30,7 @@ return [
         'passport_reader' => env('SAFARA_PASSPORT_DRIVER', 'fake'),
         // deepseek | rules
         'trip_parser' => env('SAFARA_TRIP_PARSER', 'rules'),
-        // duffel | fake
+        // duffel | manual (no API: a person quotes and tickets on the desk) | fake
         'flights' => env('SAFARA_FLIGHTS_DRIVER', 'fake'),
         // fake, or the fully-qualified class name of your own
         // App\Contracts\PaymentGateway implementation.

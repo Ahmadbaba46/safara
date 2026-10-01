@@ -6,6 +6,9 @@
     $fareNow = $selected?->amount;
     $margin = $booking->quote_amount && $fareNow ? (int) ($booking->paid_amount ?: $booking->quote_amount) - $fareNow : null;
     $openLink = $booking->payments->first(fn ($p) => $p->kind === 'charge' && $p->isOpen());
+    $manual = \App\Integrations\Flights\ManualFlightSearch::enabled();
+    $needsQuote = $manual && in_array($booking->status, [$S::AwaitingQuote, $S::AwaitingPayment, $S::Expired], true) && (int) $booking->paid_amount === 0;
+    $needsTicket = $manual && (int) $booking->paid_amount > 0 && ! $booking->ticketed_at && ! in_array($booking->status, [$S::Refunded, $S::RefundDue, $S::Cancelled], true);
 @endphp
 @section('title', $booking->reference)
 @section('content')
@@ -20,7 +23,11 @@
         <span class="small" style="color:var(--ink-2)">{{ $booking->tripLine() }} · {{ $booking->client->maskedPhone() }}@if($booking->source === 'manual') · Manual quote @endif</span>
     </div>
     <a class="btn" href="{{ route('bookings.chat', $booking) }}">@include('partials.icon', ['n' => 'chat', 'small' => true])Open chat</a>
-    @if ($booking->status === $S::FareReview || $booking->status === $S::AwaitingChoice)
+    @if ($needsQuote)
+        <a class="btn btn-primary" href="#manual-quote">{{ $booking->status === $S::AwaitingQuote ? 'Send quote' : 'Send a new quote' }}</a>
+    @elseif ($needsTicket)
+        <a class="btn btn-primary" href="#manual-issue">Record the ticket</a>
+    @elseif ($booking->status === $S::FareReview || $booking->status === $S::AwaitingChoice)
         <a class="btn btn-primary" href="{{ route('bookings.review', $booking) }}">Review fare</a>
     @elseif ($canIssue)
         <button class="btn btn-primary" type="submit" form="issue-form">@include('partials.icon', ['n' => 'ticket', 'small' => true])Issue ticket</button>
@@ -96,6 +103,51 @@
 
     {{-- Fare --}}
     <section class="stack" aria-labelledby="fare" style="gap:20px">
+        @if ($needsQuote)
+        <form id="manual-quote" method="post" action="{{ route('bookings.manualQuote', $booking) }}" class="card" style="gap:12px">
+            @csrf
+            <h2 style="font-size:18px">Send a quote</h2>
+            <span class="small muted">Price this trip with your agent or airline, then enter what the client pays. They get a pay link right away.</span>
+            <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <label class="field">Airline<input class="input" name="airline" value="{{ old('airline') }}" required maxlength="60" placeholder="Air Peace"></label>
+                <label class="field">Price to charge (₦)<input class="input" name="price" type="number" inputmode="numeric" min="1000" value="{{ old('price') }}" required placeholder="{{ $booking->quote_amount ?: '685000' }}"></label>
+                <label class="field">Your cost (₦, optional)<input class="input" name="cost" type="number" inputmode="numeric" min="0" value="{{ old('cost') }}" placeholder="for margin"></label>
+                <label class="field">Baggage (optional)<input class="input" name="baggage" value="{{ old('baggage') }}" maxlength="60" placeholder="1 x 23kg"></label>
+            </div>
+            <details>
+                <summary class="small strong" style="cursor:pointer">Flight details for the receipt (optional)</summary>
+                <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+                    <label class="field">Outbound flight no.<input class="input" name="out_flight" maxlength="12" placeholder="P4 7120"></label>
+                    <span></span>
+                    <label class="field">Departs<input class="input" name="out_departs" type="datetime-local"></label>
+                    <label class="field">Arrives<input class="input" name="out_arrives" type="datetime-local"></label>
+                    @if ($booking->return_on)
+                        <label class="field">Return flight no.<input class="input" name="ret_flight" maxlength="12"></label>
+                        <span></span>
+                        <label class="field">Departs<input class="input" name="ret_departs" type="datetime-local"></label>
+                        <label class="field">Arrives<input class="input" name="ret_arrives" type="datetime-local"></label>
+                    @endif
+                </div>
+                <label class="field" style="margin-top:10px">Summary line (optional)<input class="input" name="summary" maxlength="80" placeholder="Direct · 3h 40m"></label>
+            </details>
+            <div class="row"><button class="btn btn-primary" type="submit">Send quote and pay link</button></div>
+        </form>
+        @endif
+
+        @if ($needsTicket)
+        <form id="manual-issue" method="post" action="{{ route('bookings.manualIssue', $booking) }}" enctype="multipart/form-data" class="card" style="gap:12px">
+            @csrf
+            <h2 style="font-size:18px">Record the ticket</h2>
+            <span class="small muted">The client has paid {{ \App\Support\Money::format($booking->paid_amount) }}. Book the seat with your agent or airline, then enter the booking reference here. The client gets it in their chat.</span>
+            <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <label class="field">Booking reference (PNR)<input class="input mono" name="pnr" value="{{ old('pnr') }}" required maxlength="10" placeholder="ABC123" style="text-transform:uppercase"></label>
+                <label class="field">Ticket numbers (optional)<input class="input mono" name="ticket_numbers" value="{{ old('ticket_numbers') }}" placeholder="one per traveller, comma separated"></label>
+            </div>
+            <label class="field">Airline e-ticket PDF (optional)<input class="input" name="ticket_pdf" type="file" accept="application/pdf" style="padding-top:9px"><span class="tiny muted">If you upload it, the client gets your PDF. Otherwise Safara sends its own receipt.</span></label>
+            <div class="row"><button class="btn btn-primary" type="submit">Send ticket to client</button></div>
+        </form>
+        @endif
+
         <div class="card">
             <h2 id="fare" style="font-size:18px">Fare check</h2>
             <div class="figures">
@@ -106,7 +158,7 @@
             </div>
             <div class="row small muted" style="border-top:1px solid var(--line-2);padding-top:12px">
                 <span class="grow">{{ $offers->isNotEmpty() ? 'Offers · searched '.$offers->first()->created_at->format('H:i') : 'No search yet' }}</span>
-                @if ($booking->origin && $booking->destination && $booking->depart_on && ! $booking->ticketed_at)
+                @if (! $manual && $booking->origin && $booking->destination && $booking->depart_on && ! $booking->ticketed_at)
                     <form method="post" action="{{ route('bookings.search', $booking) }}">@csrf<button class="link-btn small" type="submit">Search again</button></form>
                 @endif
             </div>

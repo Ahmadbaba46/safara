@@ -83,7 +83,7 @@ class TicketPdf
         foreach ([
             'Check in with this booking reference and the passport shown above.',
             'Arrive at the airport at least 3 hours before international flights, 90 minutes for domestic.',
-            'Need help or a change? Reply HELP or CHANGE in your WhatsApp chat with '.$brand.'.',
+            'Need help or a change? Reply HELP or CHANGE in your chat with '.$brand.'.',
         ] as $note) {
             $pdf->text(40, $y, '·  '.$note, 10, 'regular', self::INK);
             $y += 18;

@@ -10,6 +10,7 @@ use App\Contracts\WhatsAppClient;
 use App\Enums\BookingStatus;
 use App\Integrations\Flights\DuffelFlightSearch;
 use App\Integrations\Flights\FakeFlightSearch;
+use App\Integrations\Flights\ManualFlightSearch;
 use App\Integrations\DeepSeek\DeepSeekClient;
 use App\Integrations\Passport\DeepSeekPassportReader;
 use App\Integrations\Passport\FakePassportReader;
@@ -54,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(FlightSearch::class, fn ($app) => match (config('safara.drivers.flights')) {
             'duffel' => new DuffelFlightSearch(config('safara.duffel')),
             'fake' => new FakeFlightSearch,
+            'manual' => new ManualFlightSearch,
             default => throw new InvalidArgumentException('Unknown flights driver'),
         });
 
@@ -76,13 +78,13 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.desk', function ($view) {
             $view->with('connections', [
                 ['WhatsApp Cloud API', config('safara.drivers.whatsapp') === 'meta'],
-                ['Duffel', config('safara.drivers.flights') === 'duffel'],
+                ['Flight search', in_array(config('safara.drivers.flights'), ['duffel'], true)],
                 ['Passport reader', config('safara.drivers.passport_reader') === 'deepseek'],
                 ['Payments', config('safara.drivers.payments') !== 'fake'],
             ]);
             // Bookings waiting on a person: fare reviews, paid-but-held, and chats handed over.
             $view->with('attention', Booking::query()->open()->where(fn ($q) => $q
-                ->whereIn('status', [BookingStatus::FareReview, BookingStatus::Paid])
+                ->whereIn('status', [BookingStatus::FareReview, BookingStatus::Paid, BookingStatus::AwaitingQuote])
                 ->orWhere('bot_paused', true))->count());
         });
     }

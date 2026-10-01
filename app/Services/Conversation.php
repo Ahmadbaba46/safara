@@ -128,6 +128,7 @@ class Conversation
             BookingStatus::AwaitingPayment => $this->awaitingPayment($booking, $in),
             BookingStatus::Expired => $this->expired($booking, $in),
             BookingStatus::AwaitingChoice => $this->awaitingChoice($booking, $in),
+            BookingStatus::AwaitingQuote => $this->messenger->say($client, $booking, 'quote_pending'),
             default => $this->messenger->say($client, $booking, 'paid_wait'),
         };
 

@@ -60,6 +60,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/bookings/{booking}/issue', [BookingsController::class, 'issue'])->name('bookings.issue');
     Route::post('/bookings/{booking}/requote', [BookingsController::class, 'requote'])->name('bookings.requote');
     Route::post('/bookings/{booking}/cancel', [BookingsController::class, 'cancel'])->name('bookings.cancel');
+    Route::post('/bookings/{booking}/manual-quote', [BookingsController::class, 'manualQuote'])->name('bookings.manualQuote');
+    Route::post('/bookings/{booking}/manual-issue', [BookingsController::class, 'manualIssue'])->name('bookings.manualIssue');
     Route::get('/bookings/{booking}/review', [BookingsController::class, 'review'])->name('bookings.review');
     Route::post('/bookings/{booking}/review', [BookingsController::class, 'decide'])->name('bookings.decide');
     Route::get('/bookings/{booking}/chat', [BookingsController::class, 'chat'])->name('bookings.chat');
