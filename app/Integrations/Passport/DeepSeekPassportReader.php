@@ -6,6 +6,7 @@ use App\Contracts\PassportReader;
 use App\Integrations\Data\PassportReading;
 use App\Integrations\DeepSeek\DeepSeekClient;
 use App\Support\Mrz;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Reads the passport photo page with DeepSeek's vision model, then trusts the MRZ:
@@ -45,29 +46,41 @@ TXT;
             ['type' => 'text', 'text' => 'Read this passport photo page.'],
         ], self::SYSTEM, 800);
 
-        return self::fromModel($data);
+        $reading = self::fromModel($data);
+        if (! $reading->usable()) {
+            // No passport data in the log: only which fields were rejected and how sure the model was.
+            Log::warning('DeepSeek passport reading unusable', [
+                'is_passport' => $reading->isPassport,
+                'unreadable' => $reading->unreadable(),
+                'confidence' => $reading->confidence,
+                'mrz_valid' => $reading->mrzValid,
+                'keys_returned' => array_keys($data),
+            ]);
+        }
+
+        return $reading;
     }
 
     /** Merge the model's reading with the MRZ (public for tests). */
     public static function fromModel(array $data): PassportReading
     {
-        $c = $data['confidence'] ?? [];
+        $c = is_array($data['confidence'] ?? null) ? $data['confidence'] : [];
         $fields = [
             'surname' => self::clean($data['surname'] ?? null),
             'given_names' => self::clean($data['given_names'] ?? null),
             'number' => self::clean($data['passport_number'] ?? null),
             'nationality' => self::clean($data['nationality'] ?? null),
             'issuing_country' => self::clean($data['issuing_country'] ?? null),
-            'date_of_birth' => $data['date_of_birth'] ?? null,
-            'sex' => in_array($data['sex'] ?? null, ['M', 'F'], true) ? $data['sex'] : null,
-            'expiry' => $data['expiry'] ?? null,
+            'date_of_birth' => self::date($data['date_of_birth'] ?? null),
+            'sex' => self::sex($data['sex'] ?? null),
+            'expiry' => self::date($data['expiry'] ?? null),
         ];
-        $confidence = [
-            'surname' => (int) ($c['surname'] ?? 0), 'given_names' => (int) ($c['given_names'] ?? 0),
-            'number' => (int) ($c['passport_number'] ?? 0), 'nationality' => (int) ($c['nationality'] ?? 0),
-            'issuing_country' => (int) ($c['issuing_country'] ?? 0), 'date_of_birth' => (int) ($c['date_of_birth'] ?? 0),
-            'sex' => (int) ($c['sex'] ?? 0), 'expiry' => (int) ($c['expiry'] ?? 0),
-        ];
+        // The model's own names for the fields differ from ours in two places.
+        $source = ['number' => 'passport_number'];
+        $confidence = [];
+        foreach ($fields as $field => $value) {
+            $confidence[$field] = self::score($c[$source[$field] ?? $field] ?? null, $value !== null);
+        }
 
         $mrzValid = false;
         if (! empty($data['mrz_line1']) && ! empty($data['mrz_line2'])) {
@@ -94,13 +107,66 @@ TXT;
             }
         }
 
-        return new PassportReading($fields, $confidence, $mrzValid, (bool) ($data['is_passport'] ?? true));
+        return new PassportReading($fields, $confidence, $mrzValid, self::bool($data['is_passport'] ?? true));
     }
 
-    private static function clean(?string $v): ?string
+    private static function clean(mixed $v): ?string
     {
-        $v = $v === null ? null : trim(preg_replace('/\s+/', ' ', strtoupper($v)));
+        if (! is_scalar($v)) {
+            return null;
+        }
+        $v = trim(preg_replace('/\s+/', ' ', strtoupper((string) $v)));
 
-        return $v === '' ? null : $v;
+        return in_array($v, ['', 'NULL', 'NONE', 'N/A', 'NA', 'UNKNOWN', '-', 'UNREADABLE'], true) ? null : $v;
+    }
+
+    private static function date(mixed $v): ?string
+    {
+        $v = self::clean($v);
+        if ($v === null) {
+            return null;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) && checkdate((int) substr($v, 5, 2), (int) substr($v, 8, 2), (int) substr($v, 0, 4))) {
+            return $v;
+        }
+        $t = strtotime($v);
+
+        return $t ? date('Y-m-d', $t) : null;
+    }
+
+    private static function sex(mixed $v): ?string
+    {
+        $v = self::clean($v);
+
+        return in_array($v === null ? '' : $v[0], ['M', 'F'], true) ? $v[0] : null;
+    }
+
+    private static function bool(mixed $v): bool
+    {
+        return is_string($v) ? ! in_array(strtolower(trim($v)), ['false', 'no', '0'], true) : (bool) $v;
+    }
+
+    /**
+     * 0–100 from whatever the model gave: 0–100, 0–1, a numeric string, or nothing.
+     * A value with no score is trusted a little (75): the check digits and the
+     * client's own confirmation still catch mistakes.
+     */
+    private static function score(mixed $raw, bool $hasValue): int
+    {
+        if (! $hasValue) {
+            return 0;
+        }
+        if (is_string($raw)) {
+            $raw = rtrim(trim($raw), '%');
+        }
+        if (! is_numeric($raw)) {
+            return 75;
+        }
+        $n = (float) $raw;
+        if ($n > 0 && $n <= 1) {
+            $n *= 100;
+        }
+
+        return (int) max(0, min(100, round($n)));
     }
 }

@@ -53,6 +53,45 @@ class CoreLogicTest extends TestCase
         $this->assertTrue($reading->usable());
     }
 
+    public function test_models_that_score_confidence_from_zero_to_one_are_understood(): void
+    {
+        $reading = DeepSeekPassportReader::fromModel([
+            'is_passport' => 'true',
+            'surname' => 'Bello', 'given_names' => 'Aisha', 'passport_number' => 'A09123421',
+            'nationality' => 'nga', 'date_of_birth' => '1991-06-04', 'sex' => 'Female', 'expiry' => '31 March 2031',
+            'confidence' => ['surname' => 0.97, 'given_names' => 0.95, 'passport_number' => '0.9', 'nationality' => '92%', 'date_of_birth' => 0.9, 'sex' => 0.9, 'expiry' => 0.85],
+        ]);
+
+        $this->assertTrue($reading->usable(), 'confidences of 0.95 must not read as 0');
+        $this->assertSame('BELLO', $reading->fields['surname']);
+        $this->assertSame('F', $reading->fields['sex']);
+        $this->assertSame('2031-03-31', $reading->fields['expiry']);
+        $this->assertSame(97, $reading->confidence['surname']);
+        $this->assertSame(92, $reading->confidence['nationality']);
+    }
+
+    public function test_missing_confidence_still_counts_but_null_strings_do_not(): void
+    {
+        $noScores = DeepSeekPassportReader::fromModel([
+            'surname' => 'BELLO', 'given_names' => 'AISHA', 'passport_number' => 'A09123421',
+            'nationality' => 'NGA', 'date_of_birth' => '1991-06-04', 'sex' => 'F', 'expiry' => '2031-03-14',
+        ]);
+        $this->assertTrue($noScores->usable());
+
+        $nulls = DeepSeekPassportReader::fromModel([
+            'surname' => 'null', 'given_names' => 'N/A', 'passport_number' => '', 'nationality' => 'NGA',
+            'date_of_birth' => 'unknown', 'sex' => null, 'expiry' => 'not a date', 'confidence' => null,
+        ]);
+        $this->assertFalse($nulls->usable());
+        $this->assertNull($nulls->fields['surname']);
+        $this->assertNull($nulls->fields['date_of_birth']);
+        $this->assertNull($nulls->fields['expiry']);
+        $this->assertContains('surname', $nulls->unreadable());
+
+        $notPassport = DeepSeekPassportReader::fromModel(['is_passport' => false]);
+        $this->assertFalse($notPassport->usable());
+    }
+
     public function test_pricing_matches_the_design_example(): void
     {
         $this->assertSame(685000, (new Pricing(6, 10000, 1000))->quote(646200));
