@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Behind Railway's (or any) HTTPS proxy: trust X-Forwarded-* so URLs and secure cookies are right.
+        $middleware->trustProxies(at: '*');
         // Meta and payment providers can't send a CSRF token.
         $middleware->validateCsrfTokens(except: ['webhooks/*']);
         $middleware->redirectGuestsTo('/login');
