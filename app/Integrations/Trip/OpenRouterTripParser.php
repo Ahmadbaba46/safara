@@ -3,7 +3,7 @@
 namespace App\Integrations\Trip;
 
 use App\Contracts\TripParser;
-use App\Integrations\Anthropic\AnthropicClient;
+use App\Integrations\OpenRouter\OpenRouterClient;
 use App\Support\Iata;
 use App\Support\TripRequest;
 use App\Support\TripRules;
@@ -11,12 +11,13 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Asks Claude to pull the trip out of a free-form message (English, Hausa or
+ * Asks a model on OpenRouter to pull the trip out of a free-form message (English, Hausa or
  * a mix), and falls back to the rules parser if the call fails.
  */
-class AnthropicTripParser implements TripParser
+class OpenRouterTripParser implements TripParser
 {
-    public function __construct(private AnthropicClient $client) {}
+    /** @param string[] $models text models, preferred first */
+    public function __construct(private OpenRouterClient $client, private array $models) {}
 
     public function parse(string $text, \DateTimeImmutable $today): TripRequest
     {
@@ -28,7 +29,7 @@ class AnthropicTripParser implements TripParser
         }
 
         try {
-            $data = $this->client->json([['type' => 'text', 'text' => $text]], $this->system($today), 300);
+            $data = $this->client->json([['type' => 'text', 'text' => $text]], $this->system($today), $this->models, 300);
         } catch (Throwable $e) {
             Log::warning('Trip parser fell back to rules: '.$e->getMessage());
 

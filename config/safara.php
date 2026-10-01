@@ -7,7 +7,7 @@
 |
 | Every outside service sits behind a driver. "fake" drivers let the whole
 | flow run locally (use the Simulator at /dev/simulator) without WhatsApp,
-| Duffel, Anthropic or a payment provider.
+| Duffel, OpenRouter or a payment provider.
 |
 | Business rules operators can change live (markup, price hold, ticketing
 | rules...) are NOT here — they live in the settings table and are edited
@@ -26,9 +26,9 @@ return [
     'drivers' => [
         // meta | fake
         'whatsapp' => env('SAFARA_WHATSAPP_DRIVER', 'fake'),
-        // anthropic | fake
+        // openrouter | fake
         'passport_reader' => env('SAFARA_PASSPORT_DRIVER', 'fake'),
-        // anthropic | rules
+        // openrouter | rules
         'trip_parser' => env('SAFARA_TRIP_PARSER', 'rules'),
         // duffel | fake
         'flights' => env('SAFARA_FLIGHTS_DRIVER', 'fake'),
@@ -59,10 +59,23 @@ return [
         'business_number' => env('META_WHATSAPP_BUSINESS_NUMBER'),
     ],
 
-    'anthropic' => [
-        'key' => env('ANTHROPIC_API_KEY'),
-        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-5'),
-        'url' => env('ANTHROPIC_URL', 'https://api.anthropic.com/v1/messages'),
+    // OpenRouter (https://openrouter.ai): one key, many models, including free ones.
+    // Model lists are comma separated, best first; OpenRouter falls back down the list
+    // when a free model is rate-limited. Free model names change, so check
+    // https://openrouter.ai/models?max_price=0 and update these when one disappears.
+    'openrouter' => [
+        'key' => env('OPENROUTER_API_KEY'),
+        'url' => env('OPENROUTER_URL', 'https://openrouter.ai/api/v1'),
+        // Must accept images (passport photos).
+        'vision_models' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'OPENROUTER_VISION_MODELS',
+            'google/gemma-3-27b-it:free,qwen/qwen2.5-vl-72b-instruct:free,meta-llama/llama-3.2-11b-vision-instruct:free'
+        ))))),
+        // Trip understanding from free-form messages.
+        'text_models' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'OPENROUTER_TEXT_MODELS',
+            'meta-llama/llama-3.3-70b-instruct:free,google/gemma-3-27b-it:free,qwen/qwen-2.5-72b-instruct:free'
+        ))))),
     ],
 
     'duffel' => [

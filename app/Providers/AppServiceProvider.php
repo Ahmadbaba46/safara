@@ -8,13 +8,13 @@ use App\Contracts\PaymentGateway;
 use App\Contracts\TripParser;
 use App\Contracts\WhatsAppClient;
 use App\Enums\BookingStatus;
-use App\Integrations\Anthropic\AnthropicClient;
 use App\Integrations\Flights\DuffelFlightSearch;
 use App\Integrations\Flights\FakeFlightSearch;
-use App\Integrations\Passport\AnthropicPassportReader;
+use App\Integrations\OpenRouter\OpenRouterClient;
+use App\Integrations\Passport\OpenRouterPassportReader;
 use App\Integrations\Passport\FakePassportReader;
 use App\Integrations\Payments\FakePaymentGateway;
-use App\Integrations\Trip\AnthropicTripParser;
+use App\Integrations\Trip\OpenRouterTripParser;
 use App\Integrations\Trip\RulesTripParser;
 use App\Integrations\WhatsApp\FakeWhatsApp;
 use App\Integrations\WhatsApp\MetaWhatsApp;
@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(Settings::class);
 
-        $this->app->singleton(AnthropicClient::class, fn () => new AnthropicClient(config('safara.anthropic')));
+        $this->app->singleton(OpenRouterClient::class, fn () => new OpenRouterClient(config('safara.openrouter')));
 
         $this->app->singleton(WhatsAppClient::class, fn ($app) => match (config('safara.drivers.whatsapp')) {
             'meta' => new MetaWhatsApp(config('safara.meta')),
@@ -40,13 +40,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(PassportReader::class, fn ($app) => match (config('safara.drivers.passport_reader')) {
-            'anthropic' => new AnthropicPassportReader($app->make(AnthropicClient::class)),
+            'openrouter' => new OpenRouterPassportReader($app->make(OpenRouterClient::class), config('safara.openrouter.vision_models')),
             'fake' => new FakePassportReader,
             default => throw new InvalidArgumentException('Unknown passport reader driver'),
         });
 
         $this->app->singleton(TripParser::class, fn ($app) => match (config('safara.drivers.trip_parser')) {
-            'anthropic' => new AnthropicTripParser($app->make(AnthropicClient::class)),
+            'openrouter' => new OpenRouterTripParser($app->make(OpenRouterClient::class), config('safara.openrouter.text_models')),
             'rules' => new RulesTripParser,
             default => throw new InvalidArgumentException('Unknown trip parser driver'),
         });
@@ -77,7 +77,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('connections', [
                 ['WhatsApp Cloud API', config('safara.drivers.whatsapp') === 'meta'],
                 ['Duffel', config('safara.drivers.flights') === 'duffel'],
-                ['Passport reader', config('safara.drivers.passport_reader') === 'anthropic'],
+                ['Passport reader', config('safara.drivers.passport_reader') === 'openrouter'],
                 ['Payments', config('safara.drivers.payments') !== 'fake'],
             ]);
             // Bookings waiting on a person: fare reviews, paid-but-held, and chats handed over.
