@@ -19,6 +19,7 @@ COPY . .
 RUN php artisan package:discover --ansi \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
+COPY docker/php.ini /usr/local/etc/php/conf.d/zz-safara.ini
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 EXPOSE 8080

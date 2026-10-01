@@ -98,8 +98,15 @@
 
     async function call(url, opts = {}) {
         const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', ...(opts.headers || {}) }, ...opts });
+        const raw = await res.text();
         let data = null;
-        try { data = await res.json(); } catch (e) {}
+        try { data = JSON.parse(raw); } catch (e) {}
+        if (data === null || typeof data !== 'object') {
+            // Not JSON (a proxy or PHP error page). Say what we got instead of crashing.
+            const what = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+            const err = new Error('Unexpected reply from the server (HTTP ' + res.status + ')' + (what ? ': ' + what : '') + '.');
+            err.status = res.status; throw err;
+        }
         if (!res.ok) {
             const err = new Error((data && (data.message || Object.values(data.errors || {})[0]?.[0])) || 'Something went wrong. Please try again.');
             err.status = res.status; throw err;
@@ -179,6 +186,7 @@
     }
 
     function apply(snapshot) {
+        if (!snapshot || !Array.isArray(snapshot.messages)) return;
         freeze(snapshot);
         append(snapshot.messages);
         header(snapshot);
@@ -209,6 +217,7 @@
         } catch (e) {
             document.querySelectorAll('.bubble.optimistic').forEach((n) => n.remove());
             toast(e.message);
+            setTimeout(poll, 800);
         } finally {
             typing(false);
             state.pending = false;
@@ -224,9 +233,23 @@
         post({ kind: 'text', text }, text);
     });
     $('attach').addEventListener('click', () => $('photo').click());
-    $('photo').addEventListener('change', (e) => {
+    // Phone photos are several MB. Scale them down so the upload is fast and the model reads them sooner;
+    // 2000px on the long side keeps passport text and the machine-readable lines sharp.
+    async function shrink(file) {
+        try {
+            if (!file.type.startsWith('image/') || file.size < 900 * 1024) return file;
+            const bmp = await createImageBitmap(file);
+            const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+            const c = document.createElement('canvas');
+            c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+            c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+            const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
+            return blob && blob.size < file.size ? new File([blob], 'passport.jpg', { type: 'image/jpeg' }) : file;
+        } catch (err) { return file; }
+    }
+    $('photo').addEventListener('change', async (e) => {
         const f = e.target.files[0]; e.target.value = '';
-        if (f) post({ kind: 'photo', photo: f }, 'Photo');
+        if (f) post({ kind: 'photo', photo: await shrink(f) }, 'Photo');
     });
     document.querySelectorAll('[data-say]').forEach((b) => b.addEventListener('click', () => post({ kind: 'text', text: b.dataset.say }, b.dataset.say)));
 
