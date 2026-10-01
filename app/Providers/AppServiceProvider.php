@@ -21,7 +21,10 @@ use App\Integrations\WhatsApp\FakeWhatsApp;
 use App\Integrations\WhatsApp\MetaWhatsApp;
 use App\Models\Booking;
 use App\Services\Settings;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
@@ -73,6 +76,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->rateLimits();
+
         Paginator::defaultView('partials.pagination');
 
         View::composer('layouts.desk', function ($view) {
@@ -87,5 +92,26 @@ class AppServiceProvider extends ServiceProvider
                 ->whereIn('status', [BookingStatus::FareReview, BookingStatus::Paid, BookingStatus::AwaitingQuote])
                 ->orWhere('bot_paused', true))->count());
         });
+    }
+
+    /**
+     * One named limiter per kind of request. Plain "throttle:10,1" middleware shares a
+     * single counter per visitor across every route that uses it, so the app's polling
+     * used up the budget of unrelated buttons like "delete my data".
+     */
+    private function rateLimits(): void
+    {
+        // App clients are told apart by their device cookie, so people behind one phone-network IP don't share a limit.
+        $device = fn (Request $r) => (string) ($r->cookie('safara_app') ?: $r->ip());
+
+        RateLimiter::for('app-poll', fn (Request $r) => Limit::perMinute(120)->by($device($r)));
+        RateLimiter::for('app-send', fn (Request $r) => Limit::perMinute(40)->by($device($r)));
+        RateLimiter::for('app-document', fn (Request $r) => Limit::perMinute(60)->by($device($r)));
+        RateLimiter::for('app-forget', fn (Request $r) => Limit::perMinute(10)->by($device($r)));
+        RateLimiter::for('app-start', fn (Request $r) => Limit::perMinute(20)->by($r->ip()));
+        RateLimiter::for('pay', fn (Request $r) => Limit::perMinute(60)->by($r->ip()));
+        RateLimiter::for('pay-requote', fn (Request $r) => Limit::perMinutes(10, 3)->by($r->ip()));
+        RateLimiter::for('login', fn (Request $r) => Limit::perMinute(10)->by($r->ip()));
+        RateLimiter::for('webhooks', fn (Request $r) => Limit::perMinute(600)->by($r->ip()));
     }
 }

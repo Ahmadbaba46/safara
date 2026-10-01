@@ -16,26 +16,26 @@ use Illuminate\Support\Facades\Route;
 
 // ---- Webhooks (CSRF-exempt, see bootstrap/app.php) --------------------------
 Route::get('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify']);
-Route::post('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'receive'])->middleware('throttle:600,1');
-Route::post('/webhooks/payments', PaymentWebhookController::class)->middleware('throttle:600,1');
+Route::post('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'receive'])->middleware('throttle:webhooks');
+Route::post('/webhooks/payments', PaymentWebhookController::class)->middleware('throttle:webhooks');
 
 // ---- The Safara app (clients chat here instead of on WhatsApp) -------------
 Route::get('/', [AppChatController::class, 'show'])->name('app');
 Route::prefix('app')->group(function () {
-    Route::post('/start', [AppChatController::class, 'start'])->middleware('throttle:20,1')->name('app.start');
-    Route::get('/messages', [AppChatController::class, 'messages'])->middleware('throttle:240,1')->name('app.messages');
-    Route::post('/send', [AppChatController::class, 'send'])->middleware('throttle:60,1')->name('app.send');
-    Route::get('/documents/{message}', [AppChatController::class, 'document'])->middleware('throttle:60,1')->name('app.document');
-    Route::post('/forget', [AppChatController::class, 'forget'])->middleware('throttle:10,1')->name('app.forget');
+    Route::post('/start', [AppChatController::class, 'start'])->middleware('throttle:app-start')->name('app.start');
+    Route::get('/messages', [AppChatController::class, 'messages'])->middleware('throttle:app-poll')->name('app.messages');
+    Route::post('/send', [AppChatController::class, 'send'])->middleware('throttle:app-send')->name('app.send');
+    Route::get('/documents/{message}', [AppChatController::class, 'document'])->middleware('throttle:app-document')->name('app.document');
+    Route::post('/forget', [AppChatController::class, 'forget'])->middleware('throttle:app-forget')->name('app.forget');
 });
 
 // ---- Client pay pages (public, opened from WhatsApp) ------------------------
-Route::prefix('pay/{token}')->middleware('throttle:60,1')->group(function () {
+Route::prefix('pay/{token}')->middleware('throttle:pay')->group(function () {
     Route::get('/', [PayController::class, 'show'])->name('pay.show');
     Route::post('/', [PayController::class, 'start'])->name('pay.start');
     Route::get('/return', [PayController::class, 'back'])->name('pay.return');
     Route::get('/done', [PayController::class, 'done'])->name('pay.done');
-    Route::post('/requote', [PayController::class, 'requote'])->middleware('throttle:3,10')->name('pay.requote');
+    Route::post('/requote', [PayController::class, 'requote'])->middleware('throttle:pay-requote')->name('pay.requote');
     Route::get('/test', [PayController::class, 'fake'])->name('pay.fake');
     Route::post('/test', [PayController::class, 'fakeComplete'])->name('pay.fake.complete');
 });
@@ -43,7 +43,7 @@ Route::prefix('pay/{token}')->middleware('throttle:60,1')->group(function () {
 // ---- Desk login -------------------------------------------------------------
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'show'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 

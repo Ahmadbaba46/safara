@@ -127,6 +127,28 @@ class AppChatTest extends FlowTestCase
         $this->assertSame([], \App\Integrations\WhatsApp\FakeWhatsApp::$sent);
     }
 
+    public function test_polling_does_not_use_up_the_limit_for_deleting_data(): void
+    {
+        $token = $this->join();
+
+        // Far more than the 10/min that "delete my data" allows.
+        for ($i = 0; $i < 60; $i++) {
+            $this->as($token)->getJson(route('app.messages'))->assertOk();
+        }
+
+        $this->as($token)->postJson(route('app.forget'))->assertOk();
+        $this->assertSame(0, Client::query()->count());
+    }
+
+    public function test_deleting_data_is_still_rate_limited_on_its_own(): void
+    {
+        $token = $this->join();
+        for ($i = 0; $i < 10; $i++) {
+            $this->as($token)->postJson(route('app.forget'));
+        }
+        $this->as($token)->postJson(route('app.forget'))->assertStatus(429);
+    }
+
     public function test_the_app_can_be_switched_off(): void
     {
         config(['safara.app.enabled' => false]);
