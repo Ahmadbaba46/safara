@@ -36,7 +36,7 @@
     </fieldset>
     <div class="stack-s" style="margin-top:auto;gap:12px">
         <button class="btn btn-primary p-cta" type="submit">@include('partials.icon', ['n' => 'lock', 'small' => true])<span id="cta">{{ $cta[$methods[0]] }}</span></button>
-        <span class="tiny muted" style="text-align:center;line-height:1.5">Processed securely by {{ $gateway->label() }}. Your e-ticket arrives on WhatsApp once payment is confirmed.</span>
+        <span class="tiny muted" style="text-align:center;line-height:1.5">Processed securely by {{ $gateway->label() }}. Your e-ticket arrives in your chat once payment is confirmed.</span>
     </div>
 </form>
 @endsection

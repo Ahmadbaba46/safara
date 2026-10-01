@@ -39,7 +39,7 @@ class BookingsController extends Controller
                     ->orWhereHas('client', function (Builder $c) use ($term, $digits) {
                         $c->where('name', 'like', "%$term%");
                         if (strlen($digits) >= 4) {
-                            $c->orWhere('phone', 'like', "%$digits%");
+                            $c->orWhere('phone', 'like', "%$digits%")->orWhere('contact_phone', 'like', "%$digits%");
                         }
                     });
             });
@@ -83,7 +83,7 @@ class BookingsController extends Controller
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Booking', 'Client', 'Phone', 'Route', 'Travel date', 'Return', 'Travellers', 'Quote (NGN)', 'Paid (NGN)', 'Fare (NGN)', 'Status', 'PNR', 'Updated']);
             foreach ($rows as $b) {
-                fputcsv($out, [$b->reference, $b->client->displayName(), '+'.$b->client->phone, $b->routeCodes(), $b->depart_on?->toDateString(), $b->return_on?->toDateString(),
+                fputcsv($out, [$b->reference, $b->client->displayName(), $b->client->phoneLabel(), $b->routeCodes(), $b->depart_on?->toDateString(), $b->return_on?->toDateString(),
                     $b->travellers, $b->quote_amount, $b->paid_amount, $b->ticketed_fare ?? $b->fare_amount, $b->status->label(), $b->pnr, $b->updated_at->toDateTimeString()]);
             }
             fclose($out);

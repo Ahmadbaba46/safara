@@ -100,14 +100,14 @@ class PayController extends Controller
 
     public function fake(Request $request, string $token)
     {
-        abort_unless(config('safara.drivers.payments') === 'fake' && ! app()->environment('production'), 404);
+        abort_unless(config('safara.drivers.payments') === 'fake' && (! app()->environment('production') || config('safara.demo')), 404);
 
         return view('pay.fake', ['payment' => $this->find($token), 'method' => $request->query('method', 'card')]);
     }
 
     public function fakeComplete(Request $request, string $token)
     {
-        abort_unless(config('safara.drivers.payments') === 'fake' && ! app()->environment('production'), 404);
+        abort_unless(config('safara.drivers.payments') === 'fake' && (! app()->environment('production') || config('safara.demo')), 404);
         $payment = $this->find($token);
         if ($request->input('outcome') === 'success') {
             $this->payments->markPaid($payment, 'test_'.Str::lower(Str::random(10)), $request->input('method', 'card'));

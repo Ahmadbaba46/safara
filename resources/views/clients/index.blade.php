@@ -32,7 +32,7 @@
                 <span class="avatar" style="width:64px;height:64px;background:var(--dark);color:var(--mint);font-family:var(--display);font-size:24px;font-weight:700">{{ $current->initials() }}</span>
                 <div class="grow stack-s" style="gap:4px">
                     <h2 style="font-size:28px">{{ $current->displayName() }}</h2>
-                    <span class="small" style="color:var(--ink-2)">+{{ $current->phone }} · Client since {{ $current->created_at->format('F Y') }} · Chats in {{ $current->language === 'ha' ? 'Hausa' : 'English' }}</span>
+                    <span class="small" style="color:var(--ink-2)">{{ $current->phoneLabel() }} · Client since {{ $current->created_at->format('F Y') }} · Chats in {{ $current->language === 'ha' ? 'Hausa' : 'English' }}</span>
                 </div>
                 <form method="post" action="{{ route('clients.language', $current) }}">@csrf @method('put')
                     <input type="hidden" name="language" value="{{ $current->language === 'ha' ? 'en' : 'ha' }}">

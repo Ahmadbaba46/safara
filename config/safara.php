@@ -37,6 +37,15 @@ return [
         'payments' => env('SAFARA_PAYMENTS_DRIVER', 'fake'),
     ],
 
+    // The Safara app: the standalone chat clients use instead of WhatsApp.
+    'app' => [
+        'enabled' => env('SAFARA_APP', true),
+    ],
+
+    // Demo mode lets a deployed copy run on the fake drivers: the test payment
+    // page works in production, so nobody is charged and no ticket is issued.
+    'demo' => env('SAFARA_DEMO', false),
+
     // The desk's WhatsApp simulator. Never enable in production.
     'simulator' => env('SAFARA_SIMULATOR', env('APP_ENV') !== 'production'),
 

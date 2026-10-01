@@ -26,7 +26,7 @@ class FakePaymentGateway implements PaymentGateway
 
     public function checkout(Payment $payment, string $method, string $returnUrl): string
     {
-        abort_if(app()->environment('production'), 503, 'No payment provider is configured.');
+        abort_if(app()->environment('production') && ! config('safara.demo'), 503, 'No payment provider is configured.');
 
         return route('pay.fake', ['token' => $payment->token, 'method' => $method]);
     }

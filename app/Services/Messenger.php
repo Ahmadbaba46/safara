@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Message;
 use App\Models\MessageTemplate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -160,7 +161,10 @@ class Messenger
         ]);
 
         try {
-            if ($useMetaTemplate) {
+            if ($client->isApp()) {
+                // Safara app clients read the messages table directly; nothing to send.
+                $message->wa_id = 'app.'.Str::random(16);
+            } elseif ($useMetaTemplate) {
                 $params = array_map(fn ($v) => self::fill('{'.$v.'}', $vars), $template->variables());
                 $message->wa_id = $this->wa->sendTemplate($client->phone, $template->meta_name, $client->language === 'ha' ? 'ha' : 'en', $params);
             } else {

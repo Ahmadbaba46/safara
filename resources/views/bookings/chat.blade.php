@@ -7,7 +7,7 @@
         <div class="crumbs"><a href="{{ route('bookings.index') }}">Bookings</a><span aria-hidden="true">/</span><a class="mono" href="{{ route('bookings.show', $booking) }}">{{ $booking->reference }}</a><span aria-hidden="true">/</span><span>Chat</span></div>
         <div class="row" style="gap:14px"><h1>{{ $booking->client->displayName() }}</h1>
             <span class="pill pill-l t-{{ $booking->status->tone() }}">{{ $booking->status->label() }}</span></div>
-        <span class="small" style="color:var(--ink-2)">+{{ $booking->client->phone }} · Chats in {{ $booking->client->language === 'ha' ? 'Hausa' : 'English' }} ·
+        <span class="small" style="color:var(--ink-2)">{{ $booking->client->phoneLabel() }} · Chats in {{ $booking->client->language === 'ha' ? 'Hausa' : 'English' }} ·
             {{ $booking->client->inServiceWindow() ? 'Inside the 24-hour window' : 'Outside the 24-hour window — only approved templates will reach them' }}</span>
     </div>
     <form method="post" action="{{ route('bookings.bot', $booking) }}">@csrf

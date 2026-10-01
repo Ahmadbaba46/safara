@@ -148,7 +148,7 @@ class TicketingService
                 $fresh,
                 $passengers,
                 config('safara.duffel.contact_email') ?: 'bookings@example.com',
-                $booking->client->phone,
+                $booking->client->contact_phone ?: $booking->client->phone,
             );
         } catch (Throwable $e) {
             Log::error("Ticketing failed for {$booking->reference}: ".$e->getMessage());

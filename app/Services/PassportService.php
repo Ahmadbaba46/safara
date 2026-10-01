@@ -28,7 +28,9 @@ class PassportService
      */
     public function readFromWhatsApp(string $mediaId, ?string $mime): array
     {
-        $media = $this->wa->downloadMedia($mediaId);
+        $media = str_starts_with($mediaId, 'app_')
+            ? ['bytes' => Storage::disk('local')->get('app-uploads/'.basename($mediaId)), 'mime' => 'image/jpeg']
+            : $this->wa->downloadMedia($mediaId);
         $path = 'passports/'.now()->format('Y/m').'/'.Str::uuid().'.enc';
         Storage::disk('local')->put($path, Crypt::encryptString(base64_encode($media['bytes'])));
 

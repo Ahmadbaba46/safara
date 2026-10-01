@@ -17,7 +17,7 @@ class ClientsController extends Controller
             ->withMax('bookings', 'updated_at')
             ->when($term, function ($q) use ($term) {
                 $digits = preg_replace('/\D/', '', $term);
-                $q->where(fn ($w) => $w->where('name', 'like', "%$term%")->when(strlen($digits) >= 4, fn ($x) => $x->orWhere('phone', 'like', "%$digits%")));
+                $q->where(fn ($w) => $w->where('name', 'like', "%$term%")->when(strlen($digits) >= 4, fn ($x) => $x->orWhere('phone', 'like', "%$digits%")->orWhere('contact_phone', 'like', "%$digits%")));
             })
             ->orderByDesc('bookings_max_updated_at')->orderBy('name')
             ->paginate(20)->withQueryString();

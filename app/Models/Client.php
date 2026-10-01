@@ -45,7 +45,22 @@ class Client extends Model
 
     public function displayName(): string
     {
-        return $this->name ?: '+'.$this->phone;
+        return $this->name ?: $this->phoneLabel();
+    }
+
+    public function isApp(): bool
+    {
+        return $this->channel === 'app';
+    }
+
+    /** The number to show for this client. App clients have a placeholder phone, so use what they typed. */
+    public function phoneLabel(): string
+    {
+        if ($this->isApp()) {
+            return $this->contact_phone ? '+'.$this->contact_phone : 'Safara app';
+        }
+
+        return '+'.$this->phone;
     }
 
     public function initials(): string
@@ -58,6 +73,9 @@ class Client extends Model
 
     public function maskedPhone(): string
     {
+        if ($this->isApp()) {
+            return $this->contact_phone ? '+'.$this->contact_phone : 'Safara app';
+        }
         $p = $this->phone;
         if (strlen($p) < 10) {
             return '+'.$p;
@@ -69,6 +87,10 @@ class Client extends Model
     /** Inside WhatsApp's 24-hour customer service window? */
     public function inServiceWindow(): bool
     {
+        if ($this->isApp()) {
+            return true; // no 24-hour rule inside our own app
+        }
+
         return $this->last_inbound_at !== null && $this->last_inbound_at->gt(now()->subHours(24));
     }
 }

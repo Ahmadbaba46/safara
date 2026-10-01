@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppChatController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingsController;
 use App\Http\Controllers\ClientsController;
@@ -17,6 +18,16 @@ use Illuminate\Support\Facades\Route;
 Route::get('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify']);
 Route::post('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'receive'])->middleware('throttle:600,1');
 Route::post('/webhooks/payments', PaymentWebhookController::class)->middleware('throttle:600,1');
+
+// ---- The Safara app (clients chat here instead of on WhatsApp) -------------
+Route::get('/', [AppChatController::class, 'show'])->name('app');
+Route::prefix('app')->group(function () {
+    Route::post('/start', [AppChatController::class, 'start'])->middleware('throttle:20,1')->name('app.start');
+    Route::get('/messages', [AppChatController::class, 'messages'])->middleware('throttle:240,1')->name('app.messages');
+    Route::post('/send', [AppChatController::class, 'send'])->middleware('throttle:60,1')->name('app.send');
+    Route::get('/documents/{message}', [AppChatController::class, 'document'])->middleware('throttle:60,1')->name('app.document');
+    Route::post('/forget', [AppChatController::class, 'forget'])->middleware('throttle:10,1')->name('app.forget');
+});
 
 // ---- Client pay pages (public, opened from WhatsApp) ------------------------
 Route::prefix('pay/{token}')->middleware('throttle:60,1')->group(function () {
@@ -38,7 +49,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 
 // ---- Operator desk ----------------------------------------------------------
 Route::middleware('auth')->group(function () {
-    Route::redirect('/', '/desk');
     Route::get('/desk', [DeskController::class, 'index'])->name('desk');
 
     Route::get('/bookings', [BookingsController::class, 'index'])->name('bookings.index');

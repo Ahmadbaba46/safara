@@ -7,9 +7,9 @@
     <p class="muted" style="margin:0;line-height:1.5;font-size:15px">
         @if ($payment->status === 'expired' || $payment->expires_at?->isPast())
             Fares change, so we held {{ $payment->amountLabel() }} for you until {{ $payment->expires_at?->timezone(config('safara.timezone'))->format('H:i') }}.
-            Tap below and we’ll check again and send a new price to your WhatsApp.
+            Tap below and we’ll check again and send a new price to your chat.
         @else
-            This link isn’t open any more. Your WhatsApp chat has the latest details.
+            This link isn’t open any more. Your chat has the latest details.
         @endif
     </p>
 </div>
@@ -23,7 +23,7 @@
 @if (in_array($booking->status, [\App\Enums\BookingStatus::Expired, \App\Enums\BookingStatus::AwaitingPayment], true))
     <form method="post" action="{{ route('pay.requote', $payment->token) }}" style="margin-top:auto">
         @csrf
-        <button class="btn btn-primary p-cta btn-block" type="submit">Get a new price on WhatsApp</button>
+        <button class="btn btn-primary p-cta btn-block" type="submit">Get a new price</button>
     </form>
 @endif
 @endsection
