@@ -83,9 +83,11 @@ SAFARA_TRIP_PARSER=openrouter       # optional; "rules" handles most messages fo
 OPENROUTER_API_KEY=sk-or-...
 # Optional, comma-separated, best first. Defaults are free models:
 # OPENROUTER_VISION_MODELS=google/gemma-3-27b-it:free,qwen/qwen2.5-vl-72b-instruct:free
-# OPENROUTER_TEXT_MODELS=meta-llama/llama-3.3-70b-instruct:free,google/gemma-3-27b-it:free
+# OPENROUTER_TEXT_MODELS=deepseek/deepseek-v4-flash-0731,deepseek/deepseek-v4-flash,meta-llama/llama-3.3-70b-instruct:free
 ```
 A vision model reads the photo page. The machine-readable lines (MRZ) are then checked with their check digits, and any field whose check digit passes replaces what was read from the printed text. Fields read with low confidence are flagged on the booking page, and the client always confirms before a quote is sent.
+
+**About models:** trip understanding defaults to DeepSeek V4 Flash (text only, low cost, not free). It can't see images, so passport photos use the vision models listed above.
 
 **About free models:** they cost nothing but are rate-limited, can disappear or be renamed (check [openrouter.ai/models](https://openrouter.ai/models?max_price=0)), read passports less accurately than paid models, and free providers may log prompts. Passport photos are sensitive, so use free models for testing and switch to a paid vision model (set `OPENROUTER_VISION_MODELS`) before handling real clients' passports.
 
