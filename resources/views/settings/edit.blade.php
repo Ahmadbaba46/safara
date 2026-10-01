@@ -59,7 +59,7 @@
                 @foreach ([
                     ['WhatsApp Cloud API', config('safara.drivers.whatsapp') === 'meta', config('safara.meta.business_number') ? '+'.config('safara.meta.business_number') : 'SAFARA_WHATSAPP_DRIVER'],
                     ['Duffel', config('safara.drivers.flights') === 'duffel', config('safara.drivers.flights') === 'duffel' ? (str_starts_with((string) config('safara.duffel.token'), 'duffel_test') ? 'Test mode' : 'Live mode') : 'SAFARA_FLIGHTS_DRIVER'],
-                    ['Passport reader (OpenRouter)', config('safara.drivers.passport_reader') === 'openrouter', config('safara.openrouter.vision_models.0')],
+                    ['Passport reader (DeepSeek)', config('safara.drivers.passport_reader') === 'deepseek', config('safara.deepseek.model')],
                     ['Payments', config('safara.drivers.payments') !== 'fake', config('safara.drivers.payments') === 'fake' ? 'SAFARA_PAYMENTS_DRIVER' : class_basename(config('safara.drivers.payments'))],
                 ] as [$name, $live, $detail])
                     <div class="row" style="padding:8px 0;border-bottom:1px solid var(--line-2)">

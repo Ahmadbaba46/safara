@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Integrations\Flights\DuffelFlightSearch;
-use App\Integrations\Passport\OpenRouterPassportReader;
+use App\Integrations\Passport\DeepSeekPassportReader;
 use App\Support\FareDecision;
 use App\Support\Money;
 use App\Support\Mrz;
@@ -38,7 +38,7 @@ class CoreLogicTest extends TestCase
 
     public function test_mrz_overrides_the_printed_reading_when_its_check_digit_passes(): void
     {
-        $reading = OpenRouterPassportReader::fromModel([
+        $reading = DeepSeekPassportReader::fromModel([
             'is_passport' => true,
             'mrz_line1' => 'P<NGABELLO<<AISHA<<<<<<<<<<<<<<<<<<<<<<<<<<<',
             'mrz_line2' => 'A091234210NGA9106042F3103142<<<<<<<<<<<<<<04',

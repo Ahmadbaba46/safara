@@ -6,7 +6,7 @@ Clients book flights entirely on WhatsApp. They send a trip request and a photo 
 Client on WhatsApp                        Safara                                   Outside services
 ──────────────────                        ──────                                   ────────────────
 "Kano to Jeddah, 12 Oct, just me"  ──▶  understands the trip (rules or Claude)
-passport photo                      ──▶  reads it (vision model + MRZ check digits) ──▶ OpenRouter
+passport photo                      ──▶  reads it (vision model + MRZ check digits) ──▶ DeepSeek
 taps "Yes, correct"                 ──▶  searches fares, adds your markup         ──▶ Duffel
 gets quote + pay link               ◀──  opens a pay link held for 2 hours
 pays                                ──▶  webhook confirms payment                 ◀── your payment provider
@@ -76,20 +76,16 @@ Each outside service has a driver in `.env`. Switch them one at a time and keep 
    ```
 3. Messages sent more than 24 hours after a client's last message must be approved Meta templates. Submit these five for approval: **Price hold expired**, **Fare rose after payment**, **Pay the difference**, **Refund sent** and **Manual quote start**. Once each one is approved, enter its Meta name on the Message templates screen and set its status to Approved. Everything else is a normal reply inside the 24-hour window.
 
-### 2. Passport reading and trip understanding (OpenRouter)
+### 2. Passport reading and trip understanding (DeepSeek)
 ```
-SAFARA_PASSPORT_DRIVER=openrouter
-SAFARA_TRIP_PARSER=openrouter       # optional; "rules" handles most messages for free
-OPENROUTER_API_KEY=sk-or-...
-# Optional, comma-separated, best first. Defaults are free models:
-# OPENROUTER_VISION_MODELS=google/gemma-3-27b-it:free,qwen/qwen2.5-vl-72b-instruct:free
-# OPENROUTER_TEXT_MODELS=deepseek/deepseek-v4-flash-0731,deepseek/deepseek-v4-flash,meta-llama/llama-3.3-70b-instruct:free
+SAFARA_PASSPORT_DRIVER=deepseek
+SAFARA_TRIP_PARSER=deepseek         # optional; "rules" handles most messages for free
+DEEPSEEK_API_KEY=sk-...
+# DEEPSEEK_MODEL=deepseek-flash     # the default: V4.1 Flash, accepts images
 ```
-A vision model reads the photo page. The machine-readable lines (MRZ) are then checked with their check digits, and any field whose check digit passes replaces what was read from the printed text. Fields read with low confidence are flagged on the booking page, and the client always confirms before a quote is sent.
+DeepSeek's vision model reads the photo page. The machine-readable lines (MRZ) are then checked with their check digits, and any field whose check digit passes replaces what was read from the printed text. Fields read with low confidence are flagged on the booking page, and the client always confirms before a quote is sent.
 
-**About models:** trip understanding defaults to DeepSeek V4 Flash (text only, low cost, not free). It can't see images, so passport photos use the vision models listed above.
-
-**About free models:** they cost nothing but are rate-limited, can disappear or be renamed (check [openrouter.ai/models](https://openrouter.ai/models?max_price=0)), read passports less accurately than paid models, and free providers may log prompts. Passport photos are sensitive, so use free models for testing and switch to a paid vision model (set `OPENROUTER_VISION_MODELS`) before handling real clients' passports.
+Passport photos are sent to DeepSeek's API, a service operated from China, so check that this fits your privacy policy and the consent you collect from clients. Any OpenAI-compatible provider can be used instead by changing `DEEPSEEK_URL` and `DEEPSEEK_MODEL`.
 
 ### 3. Duffel
 ```
@@ -136,7 +132,7 @@ In a fare review, you can:
 ```
 app/
   Contracts/        WhatsAppClient, PassportReader, TripParser, FlightSearch, PaymentGateway
-  Integrations/     Meta, OpenRouter, Duffel drivers + a Fake* driver for each
+  Integrations/     Meta, DeepSeek, Duffel drivers + a Fake* driver for each
   Services/
     Conversation.php     the chat state machine (one inbound message → the right reply)
     QuoteService.php     search → price → pay link → quote

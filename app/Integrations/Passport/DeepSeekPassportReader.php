@@ -4,15 +4,15 @@ namespace App\Integrations\Passport;
 
 use App\Contracts\PassportReader;
 use App\Integrations\Data\PassportReading;
-use App\Integrations\OpenRouter\OpenRouterClient;
+use App\Integrations\DeepSeek\DeepSeekClient;
 use App\Support\Mrz;
 
 /**
- * Reads the passport photo page with a vision model on OpenRouter, then trusts the MRZ:
+ * Reads the passport photo page with DeepSeek's vision model, then trusts the MRZ:
  * when its check digits pass, MRZ values win over what was read from the
  * printed text and get full confidence.
  */
-class OpenRouterPassportReader implements PassportReader
+class DeepSeekPassportReader implements PassportReader
 {
     private const SYSTEM = <<<'TXT'
 You read passport photo pages for a travel agency so a flight can be booked in the traveller's exact passport name.
@@ -34,8 +34,7 @@ Return ONLY a JSON object, no prose, with these keys:
 Copy the MRZ exactly, using "<" for filler characters. If a field is blurred, cut off, covered by glare or you are guessing, set it to null or give low confidence. Never invent values.
 TXT;
 
-    /** @param string[] $models vision-capable models, preferred first */
-    public function __construct(private OpenRouterClient $client, private array $models) {}
+    public function __construct(private DeepSeekClient $client) {}
 
     public function read(string $imageBytes, string $mime): PassportReading
     {
@@ -44,7 +43,7 @@ TXT;
         $data = $this->client->json([
             ['type' => 'image', 'mime' => $mime, 'data' => base64_encode($imageBytes)],
             ['type' => 'text', 'text' => 'Read this passport photo page.'],
-        ], self::SYSTEM, $this->models, 800);
+        ], self::SYSTEM, 800);
 
         return self::fromModel($data);
     }

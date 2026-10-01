@@ -5,7 +5,7 @@ namespace App\Support;
 /**
  * Understands trip requests without any AI: "Kano to Jeddah, 12 October, just me",
  * "daga Abuja zuwa Legas gobe mutum biyu", "KAN-DXB 18/10 return 25/10 2 adults".
- * The OpenRouter parser is better at messy messages; this one is the fallback.
+ * The DeepSeek parser is better at messy messages; this one is the fallback.
  */
 final class TripRules
 {

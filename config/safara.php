@@ -7,7 +7,7 @@
 |
 | Every outside service sits behind a driver. "fake" drivers let the whole
 | flow run locally (use the Simulator at /dev/simulator) without WhatsApp,
-| Duffel, OpenRouter or a payment provider.
+| Duffel, DeepSeek or a payment provider.
 |
 | Business rules operators can change live (markup, price hold, ticketing
 | rules...) are NOT here — they live in the settings table and are edited
@@ -26,9 +26,9 @@ return [
     'drivers' => [
         // meta | fake
         'whatsapp' => env('SAFARA_WHATSAPP_DRIVER', 'fake'),
-        // openrouter | fake
+        // deepseek | fake
         'passport_reader' => env('SAFARA_PASSPORT_DRIVER', 'fake'),
-        // openrouter | rules
+        // deepseek | rules
         'trip_parser' => env('SAFARA_TRIP_PARSER', 'rules'),
         // duffel | fake
         'flights' => env('SAFARA_FLIGHTS_DRIVER', 'fake'),
@@ -59,24 +59,13 @@ return [
         'business_number' => env('META_WHATSAPP_BUSINESS_NUMBER'),
     ],
 
-    // OpenRouter (https://openrouter.ai): one key, many models, including free ones.
-    // Model lists are comma separated, best first; OpenRouter falls back down the list
-    // when a free model is rate-limited. Free model names change, so check
-    // https://openrouter.ai/models?max_price=0 and update these when one disappears.
-    'openrouter' => [
-        'key' => env('OPENROUTER_API_KEY'),
-        'url' => env('OPENROUTER_URL', 'https://openrouter.ai/api/v1'),
-        // Must accept images (passport photos).
-        'vision_models' => array_values(array_filter(array_map('trim', explode(',', (string) env(
-            'OPENROUTER_VISION_MODELS',
-            'google/gemma-3-27b-it:free,qwen/qwen2.5-vl-72b-instruct:free,meta-llama/llama-3.2-11b-vision-instruct:free'
-        ))))),
-        // Trip understanding from free-form messages (text only). DeepSeek V4 Flash is cheap
-        // but not free, and it cannot read images, so passports use the vision models above.
-        'text_models' => array_values(array_filter(array_map('trim', explode(',', (string) env(
-            'OPENROUTER_TEXT_MODELS',
-            'deepseek/deepseek-v4-flash-0731,deepseek/deepseek-v4-flash,meta-llama/llama-3.3-70b-instruct:free'
-        ))))),
+    // DeepSeek (https://api-docs.deepseek.com): reads passport photos and understands trip
+    // messages. "deepseek-flash" is the current V4.1 Flash model and accepts images.
+    // Any OpenAI-compatible endpoint also works: change the URL, key and model.
+    'deepseek' => [
+        'key' => env('DEEPSEEK_API_KEY'),
+        'url' => env('DEEPSEEK_URL', 'https://api.deepseek.com'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-flash'),
     ],
 
     'duffel' => [

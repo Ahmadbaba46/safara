@@ -1,47 +1,39 @@
 <?php
 
-namespace App\Integrations\OpenRouter;
+namespace App\Integrations\DeepSeek;
 
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 /**
- * Minimal OpenRouter chat-completions client that asks for JSON back.
+ * Minimal client for DeepSeek's OpenAI-compatible chat completions API that
+ * asks for JSON back. deepseek-flash accepts images, so one model reads
+ * passports and understands trip messages.
  *
  * Content blocks are provider-neutral:
  *   ['type' => 'text', 'text' => '...']
  *   ['type' => 'image', 'mime' => 'image/jpeg', 'data' => '<base64>']
  *
- * Pass a list of models and OpenRouter falls back down the list when one is
- * rate-limited or unavailable, which matters a lot for ":free" models.
+ * Any OpenAI-compatible endpoint works by changing DEEPSEEK_URL and the model.
  */
-class OpenRouterClient
+class DeepSeekClient
 {
     public function __construct(private array $config) {}
 
-    /**
-     * @param  array<int, array<string, mixed>>  $content
-     * @param  string[]  $models  first is preferred, the rest are fallbacks
-     */
-    public function json(array $content, string $system, array $models, int $maxTokens = 1024): array
+    /** @param array<int, array<string, mixed>> $content */
+    public function json(array $content, string $system, int $maxTokens = 1024): array
     {
         if (empty($this->config['key'])) {
-            throw new RuntimeException('Set OPENROUTER_API_KEY to use the OpenRouter drivers.');
-        }
-        $models = array_values(array_filter($models));
-        if (! $models) {
-            throw new RuntimeException('No OpenRouter model is configured.');
+            throw new RuntimeException('Set DEEPSEEK_API_KEY to use the DeepSeek drivers.');
         }
 
         $response = Http::withToken($this->config['key'])
-            ->withHeaders(['HTTP-Referer' => (string) config('app.url'), 'X-Title' => (string) config('safara.brand')])
             ->acceptJson()->timeout(90)->retry(2, 1500, throw: false)
             ->post(rtrim($this->config['url'], '/').'/chat/completions', [
-                'model' => $models[0],
-                // OpenRouter accepts a fallback list; it is capped, so send at most 3.
-                'models' => array_slice($models, 0, 3),
+                'model' => $this->config['model'],
                 'max_tokens' => $maxTokens,
-                'temperature' => 0,
+                // Extraction needs no chain of thought; thinking is on by default and slower.
+                'thinking' => ['type' => 'disabled'],
                 'messages' => [
                     ['role' => 'system', 'content' => $system],
                     ['role' => 'user', 'content' => array_map([self::class, 'block'], $content)],
@@ -50,7 +42,7 @@ class OpenRouterClient
 
         if ($response->failed() || $response->json('error')) {
             $message = $response->json('error.message') ?? 'HTTP '.$response->status();
-            throw new RuntimeException('OpenRouter request failed: '.$message);
+            throw new RuntimeException('DeepSeek request failed: '.$message);
         }
 
         $text = $response->json('choices.0.message.content');
@@ -70,7 +62,7 @@ class OpenRouterClient
         return ['type' => 'text', 'text' => (string) ($b['text'] ?? '')];
     }
 
-    /** Models often wrap JSON in prose, code fences or <think> blocks. */
+    /** Models sometimes wrap JSON in prose, code fences or <think> blocks. */
     public static function extractJson(string $text): array
     {
         $text = preg_replace('#<think>.*?</think>#s', '', $text);
