@@ -25,4 +25,10 @@ php artisan view:cache
 # Run the scheduler (price holds, passport clean-up) every minute alongside the web server.
 ( while true; do su -s /bin/sh www-data -c "php artisan schedule:run" >/dev/null 2>&1; sleep 60; done ) &
 
+# Diagnostics for 'More than one MPM loaded': show exactly what Apache will load.
+echo "--- apache config test"; apache2ctl -t 2>&1 || true
+echo "--- mods-enabled (mpm)"; ls -l /etc/apache2/mods-enabled | grep -i mpm || true
+echo "--- LoadModule mpm"; grep -rn "LoadModule mpm" /etc/apache2/ 2>/dev/null || true
+echo "--- env"; env | grep -i -E "^APACHE|mpm" || true
+
 exec apache2-foreground
