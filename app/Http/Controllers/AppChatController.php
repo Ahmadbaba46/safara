@@ -47,6 +47,11 @@ class AppChatController extends Controller
             return response()->json(['message' => 'That phone number looks too short or too long.', 'errors' => ['phone' => ['Check the number.']]], 422);
         }
 
+        // Nigerian numbers are often typed locally (0803…); store them in international form.
+        if (strlen($digits) === 11 && str_starts_with($digits, '0')) {
+            $digits = '234'.substr($digits, 1);
+        }
+
         $client = $this->client($request);
         if (! $client) {
             $token = Str::random(48);

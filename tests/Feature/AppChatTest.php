@@ -14,6 +14,7 @@ class AppChatTest extends FlowTestCase
     /** Start a profile and return the device cookie. */
     private function join(string $name = 'Aisha Bello', string $phone = '0803 000 4417'): string
     {
+        $this->defaultCookies = []; // a fresh device
         $res = $this->postJson(route('app.start'), ['name' => $name, 'phone' => $phone, 'language' => 'en'])->assertOk();
 
         return $res->getCookie('safara_app')->getValue();
@@ -21,7 +22,7 @@ class AppChatTest extends FlowTestCase
 
     private function as(string $token): static
     {
-        return $this->withCookie('safara_app', $token);
+        return $this->withCredentials()->withCookie('safara_app', $token);
     }
 
     public function test_the_app_loads_for_everyone_and_the_desk_still_needs_a_login(): void
@@ -45,7 +46,7 @@ class AppChatTest extends FlowTestCase
         $token = $this->join();
         $client = Client::query()->firstOrFail();
         $this->assertSame('app', $client->channel);
-        $this->assertSame('08030004417', $client->contact_phone);
+        $this->assertSame('2348030004417', $client->contact_phone);
         $this->assertNotSame($token, $client->app_token, 'only a hash of the device token is stored');
         $this->phone = $client->phone;
 
@@ -55,7 +56,7 @@ class AppChatTest extends FlowTestCase
         $this->assertSame('out', collect($res->json('messages'))->last()['dir']);
 
         $res = $this->as($token)->postJson(route('app.send'), ['kind' => 'photo', 'photo' => UploadedFile::fake()->image('passport.jpg')])->assertOk();
-        $this->assertSame(BookingStatus::AwaitingConfirmation, $this->booking()->status);
+        $this->assertSame(BookingStatus::Confirming, $this->booking()->status);
 
         // The latest question has live buttons, older ones don't.
         $last = collect($res->json('messages'))->last();
@@ -86,6 +87,7 @@ class AppChatTest extends FlowTestCase
         $this->as($token)->get(route('app.document', $doc))->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $other = $this->join('Someone Else', '');
         $this->as($other)->get(route('app.document', $doc))->assertNotFound();
+        $this->defaultCookies = [];
         $this->get(route('app.document', $doc))->assertNotFound();
     }
 
@@ -113,6 +115,7 @@ class AppChatTest extends FlowTestCase
     {
         $token = $this->join();
         $this->as($token)->postJson(route('app.send'), ['kind' => 'text', 'text' => 'Kano to Jeddah 12 October just me'])->assertOk();
+        $this->phone = Client::query()->firstOrFail()->phone;
         $booking = $this->booking();
 
         $user = \App\Models\User::factory()->create();
