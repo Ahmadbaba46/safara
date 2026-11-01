@@ -7,11 +7,13 @@
     <meta name="theme-color" content="#13241F">
     <meta name="robots" content="noindex">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="{{ \Illuminate\Support\Str::before($brand, ' ') }}">
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link rel="icon" href="{{ asset('brand/icon.svg') }}" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="{{ asset('brand/icon-192.png') }}">
+    <link rel="icon" href="{{ asset('brand/favicon-32.png') }}" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="{{ asset('brand/apple-touch-icon.png') }}">
     <title>{{ $brand }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +23,7 @@
 <body>
 <div class="shell">
     <header class="bar">
-        <span class="mark" aria-hidden="true">{{ mb_substr($brand, 0, 1) }}</span>
+        <img class="mark" src="{{ asset('brand/icon-192.png') }}" alt="" width="38" height="38">
         <div class="who">
             <strong>{{ $brand }}</strong>
             <span id="sub">Flights, ticketed in minutes</span>
@@ -29,6 +31,7 @@
         <div class="menu-wrap">
             <button class="icon-btn" id="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">⋮</button>
             <div class="menu" id="menu" hidden>
+                <button type="button" id="install" class="menu-install" hidden>Install the app</button>
                 <button type="button" id="forget">Delete my data and start over</button>
             </div>
         </div>
@@ -39,7 +42,7 @@
     {{-- Welcome: shown until the device has a profile. --}}
     <main class="welcome" id="welcome" @if($client) hidden @endif>
         <div class="welcome-card">
-            <span class="mark big" aria-hidden="true">{{ mb_substr($brand, 0, 1) }}</span>
+            <img class="mark big" src="{{ asset('brand/icon-192.png') }}" alt="" width="56" height="56">
             <h1>Book your flight in a chat</h1>
             <p>Tell us where you’re going, send a photo of your passport, and pay securely. Your e-ticket comes back right here.</p>
             <form id="start-form" novalidate>
@@ -287,6 +290,24 @@
     $('forget').addEventListener('click', async () => {
         if (!confirm('Delete your chat, bookings and passport details from this app? This cannot be undone.')) return;
         try { await call(urls.forget, { method: 'POST' }); location.reload(); } catch (e) { toast(e.message); }
+    });
+
+    // ---- install to the home screen -----------------------------------------------
+    // Chrome, Edge and Android offer the real install prompt; iPhones have none, so explain the steps.
+    let installEvent = null;
+    const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    if (!installed && iOS) $('install').hidden = false;
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; if (!installed) $('install').hidden = false; });
+    window.addEventListener('appinstalled', () => { installEvent = null; $('install').hidden = true; toast('Safara is installed on your device.'); });
+    $('install').addEventListener('click', async () => {
+        if (installEvent) {
+            installEvent.prompt();
+            await installEvent.userChoice.catch(() => {});
+            installEvent = null; $('install').hidden = true;
+        } else {
+            toast('Tap the Share button, then “Add to Home Screen”.');
+        }
     });
 
     if (state.ready) { enter(); }

@@ -18,6 +18,8 @@ button { font: inherit; cursor: pointer; }
 .bar { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px 14px; background: var(--dark); color: #fff; }
 .mark { width: 38px; height: 38px; border-radius: 50%; background: var(--mint); color: #0B1F18; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 700; font-size: 20px; flex-shrink: 0; }
 .mark.big { width: 56px; height: 56px; border-radius: 16px; font-size: 30px; }
+img.mark { display: block; background: none; border-radius: 10px; object-fit: cover; }
+img.mark.big { border-radius: 16px; }
 .who { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .who strong { font-family: var(--display); font-size: 18px; }
 .who span { font-size: 12px; color: var(--on-dark-2); }
@@ -27,6 +29,8 @@ button { font: inherit; cursor: pointer; }
 .menu { position: absolute; right: 0; top: 48px; z-index: 5; background: #fff; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.22); min-width: 240px; overflow: hidden; }
 .menu button { width: 100%; text-align: left; padding: 14px 16px; border: 0; background: #fff; color: var(--red); font-weight: 500; }
 .menu button:hover { background: var(--red-soft); }
+.menu .menu-install { color: var(--green); border-bottom: 1px solid var(--line); }
+.menu .menu-install:hover { background: var(--green-tint); }
 
 .trip { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #fff; border-bottom: 1px solid var(--line); font-size: 13px; }
 .trip .grow { flex: 1; min-width: 0; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
