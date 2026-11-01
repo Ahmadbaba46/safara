@@ -19,7 +19,8 @@ final class TripRules
     private const NUMBERS = [
         'one' => 1, 'two' => 2, 'three' => 3, 'four' => 4, 'five' => 5, 'six' => 6, 'seven' => 7,
         'eight' => 8, 'nine' => 9, 'ten' => 10,
-        'daya' => 1, 'biyu' => 2, 'uku' => 3, 'hudu' => 4, 'huɗu' => 4, 'biyar' => 5, 'shida' => 6,
+        'daya' => 1, 'ɗaya' => 1, 'biyu' => 2, 'uku' => 3, 'hudu' => 4, 'huɗu' => 4, 'biyar' => 5, 'shida' => 6,
+        'bakwai' => 7, 'takwas' => 8, 'tara' => 9,
     ];
 
     private const HAUSA_HINTS = ['sannu', 'ina son', 'zuwa', 'daga', 'gobe', 'jibi', 'don allah', 'na gode', 'mutum', 'mutane', 'jirgi', 'tikiti', 'ni kadai', 'nawa', 'yaya', 'barka'];
@@ -185,6 +186,64 @@ final class TripRules
         }
 
         return $date->format('Y-m-d');
+    }
+
+    /**
+     * The answer to "how many people are travelling?". Unlike a whole trip request, a reply to
+     * that question is often just a number: "5", "five", "5 please", "me and 2 others", "family of 4".
+     * Only use this when that question was the one just asked.
+     */
+    public function answerTravellers(string $text): ?int
+    {
+        $lower = trim(mb_strtolower($text));
+        if ($lower === '') {
+            return null;
+        }
+        if (($n = $this->travellers($lower)) !== null) {
+            return $n;
+        }
+
+        $num = '(\d{1,2}|'.implode('|', array_keys(self::NUMBERS)).')';
+        $toInt = fn (string $s): ?int => ctype_digit($s) ? (int) $s : (self::NUMBERS[$s] ?? null);
+
+        // "me and 2 others / friends / more" counts the speaker too.
+        if (preg_match('/\bme\s*(?:and|\+|plus|with)\s*'.$num.'\b/u', $lower, $m) && ($k = $toInt($m[1])) !== null && $k >= 1 && $k + 1 <= 9) {
+            return $k + 1;
+        }
+        // "family of 4", "group of five", "party of 3", "total 5"
+        if (preg_match('/\b(?:family|group|party|team|total|about|around|like)\s*(?:of\s*)?'.$num.'\b/u', $lower, $m) && ($k = $toInt($m[1])) !== null && $k >= 1 && $k <= 9) {
+            return $k;
+        }
+        if (preg_match('/\b(couple|pair)\b/u', $lower)) {
+            return 2;
+        }
+
+        // Dates, times and amounts also contain numbers; those are not an answer to this question.
+        if (preg_match('/\b('.implode('|', array_keys(self::MONTHS)).')\b|\d\s*(am|pm)\b|:\d|[₦$£€,.]\d|\d[,.]\d|\d{3,}/u', $lower)) {
+            return null;
+        }
+
+        // Otherwise a single number anywhere in a short reply: "5", "five", "5 please", "x5".
+        preg_match_all('/(?<![\p{L}\d])'.$num.'(?![\p{L}\d])|(?<![\p{L}])x'.$num.'(?![\p{L}\d])/u', $lower, $m);
+        $values = [];
+        foreach (array_merge($m[1], $m[2]) as $token) {
+            if ($token !== '' && ($k = $toInt($token)) !== null && $k >= 1 && $k <= 9) {
+                $values[$k] = true;
+            }
+        }
+
+        return count($values) === 1 ? array_key_first($values) : null;
+    }
+
+    /** The answer to "where are you flying from?": one place, nothing else. */
+    public function answerPlace(string $text): ?string
+    {
+        [$origin, $destination] = $this->places($text);
+        if ($origin !== null && $destination !== null) {
+            return null; // a full "from X to Y": let the normal parse handle it
+        }
+
+        return $origin ?? $destination;
     }
 
     private function travellers(string $lower): ?int

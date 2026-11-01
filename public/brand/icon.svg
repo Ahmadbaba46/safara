@@ -4,9 +4,16 @@
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
   <g>
-  <path d="M84 402C150 412 202 362 230 318" fill="none" stroke="#B9CBC3" stroke-opacity=".75" stroke-width="10" stroke-linecap="round" stroke-dasharray="0.1 21"/>
-  <path d="M392 128 128 252l104 40Z" fill="#6FDDB2"/>
-  <path d="M392 128 232 292l44 100Z" fill="#3FB58A"/>
-  <path d="M232 292l44 100 24-70Z" fill="#2A8C69"/>
+  <circle cx="256" cy="256" r="196" fill="none" stroke="#3FB58A" stroke-opacity=".18" stroke-width="3"/>
+  <path d="M126 384C108 400 90 414 64 424" fill="none" stroke="#B9CBC3" stroke-opacity=".8" stroke-width="10" stroke-linecap="round" stroke-dasharray="0.1 19"/>
+  <g transform="translate(256 244) rotate(45) scale(.92) translate(-256 -256)">
+    <defs>
+    <path id="p" d="M256 84C275 84 287 106 287 138L287 214 408 302C414 307 416 312 416 318L416 338 287 300 287 382 330 414C334 417 336 421 336 426L336 440 256 420 176 440 176 426C176 421 178 417 182 414L225 382 225 300 96 338 96 318C96 312 98 307 104 302L225 214 225 138C225 106 237 84 256 84Z"/>
+<clipPath id="l"><rect x="0" y="0" width="256" height="512"/></clipPath></defs>
+    <use href="#p" fill="#3FB58A"/>
+    <use href="#p" fill="#7BE5BC" clip-path="url(#l)"/>
+    <path d="M256 84C275 84 287 106 287 138L287 168 225 168 225 138C225 106 237 84 256 84Z" fill="#E9FFF6" opacity=".55"/>
+    <rect x="251" y="150" width="10" height="250" rx="5" fill="#0E1F1A" opacity=".16"/>
+  </g>
 </g>
 </svg>

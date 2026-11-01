@@ -8,6 +8,8 @@ use App\Models\Booking;
 use App\Models\Client;
 use App\Models\Message;
 use App\Models\Passport;
+use App\Support\TripRequest;
+use App\Support\TripRules;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -146,7 +148,18 @@ class Conversation
             return;
         }
 
-        $req = $this->parse((string) $in->text);
+        $text = trim((string) $in->text);
+        // They may be answering the question we just asked ("how many people?", "where from?").
+        $answer = $this->answerToQuestion($booking, $text);
+        if ($answer && count(preg_split('/\s+/u', $text) ?: []) <= 4) {
+            $req = $answer; // a short reply is only the answer; don't let a parser read "5" as a date
+        } else {
+            $req = $this->parse($text);
+            if ($answer) {
+                $req->travellers ??= $answer->travellers;
+                $req->origin ??= $answer->origin;
+            }
+        }
         $first = $booking->origin === null && $booking->destination === null && $booking->depart_on === null && $booking->travellers === null;
         $this->applyTrip($booking, $req->mergeInto([
             'origin' => $booking->origin, 'destination' => $booking->destination,
@@ -176,6 +189,18 @@ class Conversation
         $this->startPassports($booking);
     }
 
+    /** What the client's short reply means, if it answers the question we last asked. */
+    private function answerToQuestion(Booking $booking, string $text): ?TripRequest
+    {
+        $rules = new TripRules(new \DateTimeImmutable('today'));
+
+        return match ($booking->stateGet('asking')) {
+            'travellers' => ($n = $rules->answerTravellers($text)) !== null ? new TripRequest(travellers: $n) : null,
+            'origin' => ($p = $rules->answerPlace($text)) !== null ? new TripRequest(origin: $p) : null,
+            default => null,
+        };
+    }
+
     private function applyTrip(Booking $booking, array $trip): void
     {
         if ($trip['origin'] && $trip['origin'] === $trip['destination']) {
@@ -200,6 +225,12 @@ class Conversation
             ! $booking->travellers => 'ask_travellers',
             default => null,
         };
+        // Remember what we are asking so the next short reply is read as its answer.
+        $booking->stateSet('asking', match ($missing) {
+            'ask_travellers' => 'travellers',
+            'ask_origin' => 'origin',
+            default => null,
+        })->save();
         if (! $missing) {
             return false;
         }
