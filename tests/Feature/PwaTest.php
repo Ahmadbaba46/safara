@@ -87,12 +87,17 @@ class PwaTest extends TestCase
         $this->assertSame(1, preg_match('#const STATIC = /(.+)/;#', $js, $re));
         $static = fn (string $path) => (bool) preg_match('~'.str_replace('~', '\~', $re[1]).'~', $path);
 
-        foreach (['/css/app.css', '/css/safara.css', '/brand/icon.svg', '/brand/icon-192.png', '/manifest.webmanifest', '/offline.html'] as $ok) {
+        foreach (['/css/app.css', '/css/safara.css', '/brand/icon.svg', '/brand/icon-192.png', '/offline.html'] as $ok) {
             $this->assertTrue($static($ok), "$ok should be cacheable");
         }
-        foreach (['/', '/app/messages', '/app/send', '/app/documents/1', '/pay/abc123', '/pay/abc123/done', '/desk', '/login', '/bookings/SF-2401', '/bookings/SF-2401/ticket', '/clients', '/webhooks/payments'] as $private) {
+        foreach (['/manifest.webmanifest', '/sw.js', '/', '/app/messages', '/app/send', '/app/documents/1', '/pay/abc123', '/pay/abc123/done', '/desk', '/login', '/bookings/SF-2401', '/bookings/SF-2401/ticket', '/clients', '/webhooks/payments'] as $private) {
             $this->assertFalse($static($private), "$private must never be cached");
         }
+
+        // The manifest and worker are served with no-cache so a phone never keeps an outdated install description.
+        $htaccess = file_get_contents(public_path('.htaccess'));
+        $this->assertStringContainsString('manifest\.webmanifest|sw\.js|offline\.html', $htaccess);
+        $this->assertStringContainsString('Cache-Control "no-cache"', $htaccess);
 
         // Only GET requests, and only this site's own files, are ever touched.
         $this->assertStringContainsString("req.method !== 'GET'", $js);

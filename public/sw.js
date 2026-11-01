@@ -3,9 +3,10 @@
 // Makes the app installable and keeps its shell (styles, icons, an offline page) available without
 // a connection. The chat itself is live, private data, so it is NEVER cached: only the static
 // files matched by STATIC are stored; every other request goes straight to the network.
-const VERSION = 'safara-v1';
+const VERSION = 'safara-v2'; // bump to drop every older cache
 const SHELL = ['/offline.html', '/css/app.css', '/brand/icon.svg', '/brand/icon-192.png', '/brand/icon-512.png'];
-const STATIC = /^\/(css\/|brand\/|manifest\.webmanifest$|offline\.html$)/;
+// The manifest is deliberately not here: install details must always come fresh from the server.
+const STATIC = /^\/(css\/|brand\/|offline\.html$)/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
