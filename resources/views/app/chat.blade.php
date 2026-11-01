@@ -10,8 +10,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="{{ \Illuminate\Support\Str::before($brand, ' ') }}">
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-    <link rel="icon" href="{{ asset('icons/icon.svg') }}" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="{{ asset('icons/icon-192.png') }}">
+    <link rel="icon" href="{{ asset('brand/icon.svg') }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ asset('brand/icon-192.png') }}">
     <title>{{ $brand }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

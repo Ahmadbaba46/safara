@@ -33,6 +33,25 @@ class AppChatTest extends FlowTestCase
         $this->assertFileExists(public_path('sw.js'));
     }
 
+    public function test_every_icon_the_app_advertises_exists_and_avoids_apaches_reserved_icons_path(): void
+    {
+        $manifest = json_decode(file_get_contents(public_path('manifest.webmanifest')), true);
+        $this->assertNotEmpty($manifest['icons']);
+        foreach ($manifest['icons'] as $icon) {
+            // Debian's Apache maps /icons/ to its own folder, so files there would 404 once deployed.
+            $this->assertStringStartsNotWith('/icons/', $icon['src']);
+            $this->assertFileExists(public_path(ltrim($icon['src'], '/')));
+        }
+
+        $html = $this->get('/')->getContent();
+        $this->assertStringNotContainsString('/icons/', $html);
+        preg_match_all('#(?:href)="[^"]*/(brand/[^"]+)"#', $html, $m);
+        $this->assertNotEmpty($m[1]);
+        foreach ($m[1] as $path) {
+            $this->assertFileExists(public_path($path));
+        }
+    }
+
     public function test_a_device_needs_a_profile_before_it_can_chat(): void
     {
         $this->postJson(route('app.send'), ['kind' => 'text', 'text' => 'hello'])->assertForbidden();
